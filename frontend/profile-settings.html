@@ -399,7 +399,7 @@
 
   <script>
     const fallbackImage = 'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png';
-    const API_BASE_URL = 'http://localhost:10000/api'; // ADDED
+    const API_BASE_URL = window.location.origin + '/api'; // ADDED
 
     (function() {
       const token = localStorage.getItem('token');
