@@ -14,9 +14,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// REMOVE this line - fallbackAvatar is already declared in user.go
-// const fallbackAvatar = "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png"
-
 func AddFavorite(c *gin.Context) {
 	var req struct {
 		TargetUserID string `json:"targetUserId" binding:"required"`
@@ -144,8 +141,8 @@ func GetFavorites(c *gin.Context) {
 	favColl := database.Client.Database("coded").Collection("favorites")
 	usersColl := database.Client.Database("coded").Collection("users")
 
-	// Fetch favorites
-	findOptions := options.Find().SetSort(bson.D{{"createdAt", -1}})
+	// Fetch favorites - FIXED: Use keyed fields in bson.D
+	findOptions := options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}})
 	cursor, err := favColl.Find(ctx, bson.M{"userId": userID}, findOptions)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch favorites"})
@@ -195,15 +192,13 @@ func GetFavorites(c *gin.Context) {
 		}
 	}
 
-	// Use a local fallback variable
-	const localFallbackAvatar = "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png"
-	
+	// Use the global fallbackAvatar from common.go
 	response := make([]map[string]interface{}, len(favorites))
 	for i, f := range favorites {
 		userData := map[string]interface{}{
 			"id":     f.TargetUserID.Hex(),
 			"name":   "Unknown User",
-			"avatar": localFallbackAvatar,
+			"avatar": fallbackAvatar,
 			"status": "offline",
 			"bio":    "",
 		}

@@ -18,7 +18,8 @@ import (
     "go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func init() {
+// InitVAPIDKeys initializes VAPID keys from environment or generates new ones
+func InitVAPIDKeys() {
     // Initialize VAPID keys if not set in environment
     if os.Getenv("VAPID_PUBLIC_KEY") == "" || os.Getenv("VAPID_PRIVATE_KEY") == "" {
         publicKey, privateKey, err := webpush.GenerateVAPIDKeys()
@@ -27,27 +28,24 @@ func init() {
             return
         }
         
-        // Store in memory (for development only)
-        // In production, you should set these as environment variables
+        // Store in environment (for development only)
         os.Setenv("VAPID_PUBLIC_KEY", publicKey)
-        os.Setenv("VAPID_PRIVATE_KEY", privateKey)
+        vapidPrivateKey = privateKey
         
         log.Println("⚠️  Generated new VAPID keys - for production, set these as environment variables:")
         log.Printf("   VAPID_PUBLIC_KEY: %s", publicKey)
         log.Printf("   VAPID_PRIVATE_KEY: %s", privateKey)
+    } else {
+        vapidPrivateKey = os.Getenv("VAPID_PRIVATE_KEY")
+        log.Println("✅ VAPID keys loaded from environment")
     }
-    
-    // Set the vapidPrivateKey from environment
-    // Note: vapidPrivateKey is declared in common.go, we're just setting its value
-    // We need to access it through the package variable
-    vapidPrivateKey = os.Getenv("VAPID_PRIVATE_KEY")
 }
 
 func GetVapidPublicKey(c *gin.Context) {
     publicKey := os.Getenv("VAPID_PUBLIC_KEY")
     if publicKey == "" {
         c.JSON(http.StatusOK, gin.H{
-            "error": "VAPID public key not configured",
+            "error":   "VAPID public key not configured",
             "message": "Contact administrator",
         })
         return
@@ -55,7 +53,7 @@ func GetVapidPublicKey(c *gin.Context) {
     
     c.JSON(http.StatusOK, gin.H{
         "publicKey": publicKey,
-        "message": "VAPID public key retrieved successfully",
+        "message":   "VAPID public key retrieved successfully",
     })
 }
 
@@ -85,19 +83,14 @@ func SubscribePush(c *gin.Context) {
 
     subsColl := database.Client.Database("coded").Collection("subscriptions")
 
-    subscription := webpush.Subscription{
-        Endpoint: req.Endpoint,
-        Keys: webpush.Keys{
-            P256dh: req.Keys.P256dh,
-            Auth:   req.Keys.Auth,
-        },
-    }
-
     pushSub := PushSubscription{
-        ID:     primitive.NewObjectID(),
-        UserID: userID,
-        Sub:    subscription,
+        ID:        primitive.NewObjectID(),
+        UserID:    userID,
+        Endpoint:  req.Endpoint,
+        CreatedAt: time.Now().Unix(),
     }
+    pushSub.Keys.P256dh = req.Keys.P256dh
+    pushSub.Keys.Auth = req.Keys.Auth
 
     // Upsert: update if exists, insert if not
     _, err = subsColl.UpdateOne(
@@ -138,11 +131,20 @@ func SendPushNotification(userID primitive.ObjectID, title, body, icon string) {
         err := subsColl.FindOne(ctx, bson.M{"userId": userID}).Decode(&sub)
         if err == mongo.ErrNoDocuments {
             log.Printf("No push subscription found for user: %s", userID.Hex())
-            return // No subscription
+            return
         }
         if err != nil {
             log.Printf("Failed to find subscription for user %s: %v", userID.Hex(), err)
             return
+        }
+
+        // Create webpush subscription from our stored data
+        webpushSub := &webpush.Subscription{
+            Endpoint: sub.Endpoint,
+            Keys: webpush.Keys{
+                P256dh: sub.Keys.P256dh,
+                Auth:   sub.Keys.Auth,
+            },
         }
 
         payload := map[string]interface{}{
@@ -150,11 +152,11 @@ func SendPushNotification(userID primitive.ObjectID, title, body, icon string) {
             "body":  body,
             "icon":  icon,
             "data": map[string]interface{}{
-                "url": "/chats.html",
+                "url":       "/chats.html",
                 "timestamp": time.Now().Unix(),
             },
         }
-        
+
         payloadBytes, err := json.Marshal(payload)
         if err != nil {
             log.Printf("Failed to marshal push payload: %v", err)
@@ -162,15 +164,15 @@ func SendPushNotification(userID primitive.ObjectID, title, body, icon string) {
         }
 
         // Send push
-        resp, err := webpush.SendNotification(payloadBytes, &sub.Sub, &webpush.Options{
+        resp, err := webpush.SendNotification(payloadBytes, webpushSub, &webpush.Options{
             Subscriber:      "mailto:admin@coded.com",
             VAPIDPrivateKey: vapidPrivateKey,
             TTL:             30,
         })
-        
+
         if err != nil {
             log.Printf("Failed to send push notification to user %s: %v", userID.Hex(), err)
-            
+
             // If subscription is invalid (410), delete it
             if resp != nil && resp.StatusCode == 410 {
                 log.Printf("Push subscription expired for user %s, deleting...", userID.Hex())
@@ -181,9 +183,11 @@ func SendPushNotification(userID primitive.ObjectID, title, body, icon string) {
             }
             return
         }
-        
+
         log.Printf("Push notification sent successfully to user: %s", userID.Hex())
-        resp.Body.Close()
+        if resp != nil {
+            resp.Body.Close()
+        }
     }()
 }
 
@@ -192,15 +196,15 @@ func SendMessagePush(senderID, receiverID primitive.ObjectID, messageContent str
     if senderName == "" {
         senderName = "Someone"
     }
-    
+
     title := senderName + " sent a message"
     body := messageContent
-    
+
     // Truncate long messages
     if len(body) > 100 {
         body = body[:100] + "..."
     }
-    
+
     SendPushNotification(receiverID, title, body, "")
 }
 

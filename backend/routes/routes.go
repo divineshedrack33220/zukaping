@@ -1,9 +1,12 @@
 package routes
 
 import (
+    "os"
+    "strings"
+    "time"
+
     "coded/handlers"
     "coded/middleware"
-    "time"
 
     "github.com/gin-contrib/cors"
     "github.com/gin-gonic/gin"
@@ -23,9 +26,24 @@ func SetupRouter() *gin.Engine {
         })
     })
 
-    // CORS configuration - FIXED with WebSocket support
+    // CORS configuration - Updated for Render
+    allowOrigins := []string{
+        "http://localhost:8080",
+        "http://localhost:5500",
+        "http://localhost:3000",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:5500",
+        "https://coded-backend.onrender.com",
+        "https://*.onrender.com",
+    }
+    
+    // Add allowed origins from environment variable
+    if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {
+        allowOrigins = append(allowOrigins, strings.Split(envOrigins, ",")...)
+    }
+
     router.Use(cors.New(cors.Config{
-        AllowOrigins:     []string{"http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:5500", "http://127.0.0.1:5500", "http://localhost:3000"},
+        AllowOrigins:     allowOrigins,
         AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
         AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept", "X-Requested-With"},
         ExposeHeaders:    []string{"Content-Length", "Content-Type"},
@@ -82,7 +100,7 @@ func SetupRouter() *gin.Engine {
     protected.POST("/message", handlers.SendMessage)
     protected.GET("/messages/:chatId", handlers.GetMessages)
     protected.POST("/messages/:id/read", handlers.MarkAsRead)
-    protected.POST("/typing", handlers.SendTypingIndicator) // New endpoint
+    protected.POST("/typing", handlers.SendTypingIndicator)
 
     // Photo upload
     protected.POST("/upload-photo", handlers.UploadPhoto)

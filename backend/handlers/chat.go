@@ -27,39 +27,43 @@ func GetChatList(c *gin.Context) {
 
     chatsColl := database.Client.Database("coded").Collection("chats")
 
-    pipeline := mongo.Pipeline{
-        {{"$match", bson.D{{"participants", userID}}}},
-        {{"$sort", bson.D{{"lastMessageAt", -1}}}},
-        {{"$lookup", bson.D{
-            {"from", "users"},
-            {"localField", "participants"},
-            {"foreignField", "_id"},
-            {"as", "participantsProfiles"},
-        }}},
-        {{"$addFields", bson.D{
-            {"partner", bson.D{
-                {"$arrayElemAt", bson.A{
-                    bson.D{{"$filter", bson.D{
-                        {"input", "$participantsProfiles"},
-                        {"as", "p"},
-                        {"cond", bson.D{{"$ne", bson.A{"$$p._id", userID}}}},
-                    }}},
-                    0,
-                }},
-            }},
-        }}},
-        {{"$project", bson.D{
-            {"id", "$_id"},
-            {"lastMessage", 1},
-            {"lastMessageAt", 1},
-            {"partner", bson.D{
-                {"id", "$partner._id"},
-                {"name", "$partner.name"},
-                {"avatar", "$partner.avatar"},
-                {"status", "$partner.status"},
-            }},
-        }}},
-    }
+    // Build pipeline step by step to avoid nested bson.D issues
+    matchStage := bson.D{{Key: "$match", Value: bson.D{{Key: "participants", Value: userID}}}}
+    sortStage := bson.D{{Key: "$sort", Value: bson.D{{Key: "lastMessageAt", Value: -1}}}}
+    
+    lookupStage := bson.D{{Key: "$lookup", Value: bson.D{
+        {Key: "from", Value: "users"},
+        {Key: "localField", Value: "participants"},
+        {Key: "foreignField", Value: "_id"},
+        {Key: "as", Value: "participantsProfiles"},
+    }}}
+    
+    // Build filter condition
+    filterCond := bson.D{{Key: "$filter", Value: bson.D{
+        {Key: "input", Value: "$participantsProfiles"},
+        {Key: "as", Value: "p"},
+        {Key: "cond", Value: bson.D{{Key: "$ne", Value: bson.A{"$$p._id", userID}}}},
+    }}}
+    
+    addFieldsStage := bson.D{{Key: "$addFields", Value: bson.D{
+        {Key: "partner", Value: bson.D{
+            {Key: "$arrayElemAt", Value: bson.A{filterCond, 0}},
+        }},
+    }}}
+    
+    projectStage := bson.D{{Key: "$project", Value: bson.D{
+        {Key: "id", Value: "$_id"},
+        {Key: "lastMessage", Value: 1},
+        {Key: "lastMessageAt", Value: 1},
+        {Key: "partner", Value: bson.D{
+            {Key: "id", Value: "$partner._id"},
+            {Key: "name", Value: "$partner.name"},
+            {Key: "avatar", Value: "$partner.avatar"},
+            {Key: "status", Value: "$partner.status"},
+        }},
+    }}}
+
+    pipeline := mongo.Pipeline{matchStage, sortStage, lookupStage, addFieldsStage, projectStage}
 
     cursor, err := chatsColl.Aggregate(ctx, pipeline)
     if err != nil {
@@ -238,41 +242,44 @@ func GetChat(c *gin.Context) {
 
     chatsColl := database.Client.Database("coded").Collection("chats")
 
-    pipeline := mongo.Pipeline{
-        {{"$match", bson.D{
-            {"_id", chatID},
-            {"participants", userID},
-        }}},
-        {{"$lookup", bson.D{
-            {"from", "users"},
-            {"localField", "participants"},
-            {"foreignField", "_id"},
-            {"as", "participantsProfiles"},
-        }}},
-        {{"$addFields", bson.D{
-            {"partner", bson.D{
-                {"$arrayElemAt", bson.A{
-                    bson.D{{"$filter", bson.D{
-                        {"input", "$participantsProfiles"},
-                        {"as", "p"},
-                        {"cond", bson.D{{"$ne", bson.A{"$$p._id", userID}}}},
-                    }}},
-                    0,
-                }},
-            }},
-        }}},
-        {{"$project", bson.D{
-            {"id", "$_id"},
-            {"lastMessage", 1},
-            {"lastMessageAt", 1},
-            {"partner", bson.D{
-                {"id", "$partner._id"},
-                {"name", "$partner.name"},
-                {"avatar", "$partner.avatar"},
-                {"status", "$partner.status"},
-            }},
-        }}},
-    }
+    // Build pipeline step by step
+    matchStage := bson.D{{Key: "$match", Value: bson.D{
+        {Key: "_id", Value: chatID},
+        {Key: "participants", Value: userID},
+    }}}
+    
+    lookupStage := bson.D{{Key: "$lookup", Value: bson.D{
+        {Key: "from", Value: "users"},
+        {Key: "localField", Value: "participants"},
+        {Key: "foreignField", Value: "_id"},
+        {Key: "as", Value: "participantsProfiles"},
+    }}}
+    
+    filterCond := bson.D{{Key: "$filter", Value: bson.D{
+        {Key: "input", Value: "$participantsProfiles"},
+        {Key: "as", Value: "p"},
+        {Key: "cond", Value: bson.D{{Key: "$ne", Value: bson.A{"$$p._id", userID}}}},
+    }}}
+    
+    addFieldsStage := bson.D{{Key: "$addFields", Value: bson.D{
+        {Key: "partner", Value: bson.D{
+            {Key: "$arrayElemAt", Value: bson.A{filterCond, 0}},
+        }},
+    }}}
+    
+    projectStage := bson.D{{Key: "$project", Value: bson.D{
+        {Key: "id", Value: "$_id"},
+        {Key: "lastMessage", Value: 1},
+        {Key: "lastMessageAt", Value: 1},
+        {Key: "partner", Value: bson.D{
+            {Key: "id", Value: "$partner._id"},
+            {Key: "name", Value: "$partner.name"},
+            {Key: "avatar", Value: "$partner.avatar"},
+            {Key: "status", Value: "$partner.status"},
+        }},
+    }}}
+
+    pipeline := mongo.Pipeline{matchStage, lookupStage, addFieldsStage, projectStage}
 
     cursor, err := chatsColl.Aggregate(ctx, pipeline)
     if err != nil {

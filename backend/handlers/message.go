@@ -49,22 +49,21 @@ func GetMessages(c *gin.Context) {
     }
 
     messagesColl := database.Client.Database("coded").Collection("messages")
-
-    // Fetch messages with sender user data
-    pipeline := mongo.Pipeline{
-        {{"$match", bson.D{{"chatId", chatID}}}},
-        {{"$sort", bson.D{{"createdAt", 1}}}},
-        {{"$lookup", bson.D{
-            {"from", "users"},
-            {"localField", "senderId"},
-            {"foreignField", "_id"},
-            {"as", "senderProfile"},
-        }}},
-        {{"$unwind", bson.D{
-            {"path", "$senderProfile"},
-            {"preserveNullAndEmptyArrays", true},
-        }}},
-    }
+// Fetch messages with sender user data
+pipeline := mongo.Pipeline{
+    {{Key: "$match", Value: bson.D{{Key: "chatId", Value: chatID}}}},
+    {{Key: "$sort", Value: bson.D{{Key: "createdAt", Value: 1}}}},
+    {{Key: "$lookup", Value: bson.D{
+        {Key: "from", Value: "users"},
+        {Key: "localField", Value: "senderId"},
+        {Key: "foreignField", Value: "_id"},
+        {Key: "as", Value: "senderProfile"},
+    }}},
+    {{Key: "$unwind", Value: bson.D{
+        {Key: "path", Value: "$senderProfile"},
+        {Key: "preserveNullAndEmptyArrays", Value: true},
+    }}},
+}
 
     cursor, err := messagesColl.Aggregate(ctx, pipeline)
     if err != nil {
@@ -231,27 +230,15 @@ func SendMessage(c *gin.Context) {
         }()
 
         subsColl := database.Client.Database("coded").Collection("subscriptions")
-        usersColl := database.Client.Database("coded").Collection("users")
 
         for _, participantID := range chat.Participants {
             if participantID == userID {
                 continue // Skip sender
             }
 
-            // Get receiver's name for payload (optional)
-            var sender models.User
-            usersColl.FindOne(context.Background(), bson.M{"_id": userID}).Decode(&sender)
-
-            payload := map[string]string{
-                "title": sender.Name + " sent a message",
-                "body":  req.Content,
-                "icon":  sender.Avatar, // Optional
-            }
-            payloadBytes, _ := json.Marshal(payload)
-
             // Find subscription
             var sub PushSubscription
-            err = subsColl.FindOne(context.Background(), bson.M{"userId": participantID}).Decode(&sub)
+            err := subsColl.FindOne(context.Background(), bson.M{"userId": participantID}).Decode(&sub)
             if err == mongo.ErrNoDocuments {
                 continue // No subscription
             }
@@ -260,14 +247,36 @@ func SendMessage(c *gin.Context) {
                 continue
             }
 
+            // Create webpush subscription from stored data
+            webpushSub := &webpush.Subscription{
+                Endpoint: sub.Endpoint,
+                Keys: webpush.Keys{
+                    P256dh: sub.Keys.P256dh,
+                    Auth:   sub.Keys.Auth,
+                },
+            }
+
+            payload := map[string]interface{}{
+                "title": sender.Name + " sent a message",
+                "body":  req.Content,
+                "icon":  sender.Avatar,
+            }
+            payloadBytes, err := json.Marshal(payload)
+            if err != nil {
+                log.Printf("Failed to marshal push payload: %v", err)
+                continue
+            }
+
             // Send push
-            _, err = webpush.SendNotification(payloadBytes, &sub.Sub, &webpush.Options{
-                Subscriber:      "user@example.com", // Replace with actual if needed
+            _, err = webpush.SendNotification(payloadBytes, webpushSub, &webpush.Options{
+                Subscriber:      "mailto:admin@coded.com",
                 VAPIDPrivateKey: vapidPrivateKey,
                 TTL:             30,
             })
             if err != nil {
-                log.Printf("Failed to send push: %v", err)
+                log.Printf("Failed to send push to user %s: %v", participantID.Hex(), err)
+            } else {
+                log.Printf("Push notification sent to user: %s", participantID.Hex())
             }
         }
     }()

@@ -75,12 +75,12 @@ func CreateIndexes() {
         },
     }
 
-    // Chats collection indexes
+    // Chats collection indexes - FIXED: Use unique name to avoid conflict
     chatsColl := DB.Collection("chats")
     chatsIndexes := []mongo.IndexModel{
         {
             Keys:    bson.D{{Key: "participants", Value: 1}},
-            Options: options.Index().SetUnique(true),
+            Options: options.Index().SetUnique(true).SetName("unique_participants"),
         },
         {
             Keys: bson.D{{Key: "lastMessageAt", Value: -1}},
