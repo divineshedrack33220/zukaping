@@ -1,168 +1,115 @@
-# InstaPing - Real-time Social Connection Platform
+<div align="center">
+  
+  # 🍋 Zukaping
+  
+  **A Modern, Real-Time Social Discovery & Chat Application**
 
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev/)
-[![Flutter](https://img.shields.io/badge/Flutter-3.0+-02569B?style=flat&logo=flutter)](https://flutter.dev/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-4.4+-47A248?style=flat&logo=mongodb)](https://www.mongodb.com/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Render](https://img.shields.io/badge/Deployed%20on-Render-46E3B7?style=flat&logo=render)](https://render.com)
+  [![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)
+  [![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
+  [![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+  [![Gin Framework](https://img.shields.io/badge/Gin-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://gin-gonic.com/)
 
-InstaPing is a comprehensive full-stack social networking ecosystem that enables real-time communication, location-based user discovery, and interactive feed management. It features a robust Go backend, a modern PWA-ready web frontend, and a high-performance Flutter mobile application.
+  [Features](#sparkles-features) • [Tech Stack](#hammer_and_wrench-tech-stack) • [Getting Started](#rocket-getting-started) • [Architecture](#triangular_ruler-architecture)
+</div>
 
 ---
+
+## 📖 Overview
+
+Zukaping is a full-stack, real-time social application built to connect people. Whether you're looking for friends nearby, matching based on interests, or engaging in live text and group chats, Zukaping provides a seamless, lightning-fast experience across Android, iOS, and the Web. 
+
+The platform features a highly optimized **Go/Gin backend** communicating over WebSockets for zero-latency messaging, paired with a beautiful, glassmorphism-inspired **Flutter front-end**.
 
 ## ✨ Features
 
-### 🔐 Core Ecosystem
-- **Multi-Platform Support**: Seamless experience across Web and Mobile (Android/iOS).
-- **Authentication System**: Secure Email/Password registration and Google OAuth 2.0 integration.
-- **Real-time Messaging**: Instant communication powered by WebSocket with typing indicators and online status.
-- **Location-based Discovery**: Find and connect with users nearby using geolocation services.
-- **Social Feed**: Create posts, share updates, and interact with the community.
-- **Push Notifications**: Stay updated with Web Push API and mobile notification support.
-- **Media Management**: High-quality image sharing and profile customization via Cloudinary.
+- **🔐 Secure Authentication:** JWT-based auth with support for Google Sign-In and standard Email/Password.
+- **📍 Location-Based Discovery:** Find and match with users nearby using geospatial queries.
+- **💬 Real-Time Chat Engine:** 1-on-1 and Group messaging powered by highly concurrent Go WebSockets.
+- **📸 Dynamic Profiles:** Customizable user profiles, photo galleries, and interest tags.
+- **🔔 Push Notifications:** Integrated VAPID-based push notifications so you never miss a message.
+- **🎨 Premium UI/UX:** A state-of-the-art Flutter UI featuring glassmorphism, fluid animations, and responsive layouts.
+- **🗑️ Account Management:** Full data autonomy, including secure account deletion and cache invalidation.
 
-### 🛠️ Technical Highlights
-- **RESTful API**: Scalable Gin-based backend with proper HTTP method implementation.
-- **Live WebSocket Manager**: Efficient handling of real-time events and message broadcasting.
-- **Optimized Database**: MongoDB indexing and schema design for high-performance queries.
-- **Security First**: JWT authentication, bcrypt password hashing, CORS protection, and rate limiting.
-- **Offline Capabilities**: Progressive Web App (PWA) support with service workers for the web frontend.
+## 🔨 Tech Stack
 
----
+### Frontend (Mobile & Web)
+- **Framework:** [Flutter](https://flutter.dev/) (Dart)
+- **State Management:** Provider / Local setState
+- **Local Storage:** SharedPreferences
+- **Networking:** HTTP (REST API) & WebSockets (`web_socket_channel`)
+- **Assets:** CachedNetworkImage, Custom SVG Icons
 
-## 🛠️ Tech Stack
+### Backend (API & WebSockets)
+- **Language:** [Go (Golang)](https://go.dev/)
+- **Framework:** [Gin Web Framework](https://gin-gonic.com/)
+- **Database:** [MongoDB](https://www.mongodb.com/) (using the official `mongo-driver`)
+- **Real-Time:** Native Go WebSockets (`gorilla/websocket`)
+- **Security:** `golang-jwt` for tokens, `bcrypt` for password hashing
 
-### Backend
-- **Language**: Go 1.21+
-- **Framework**: Gin Gonic
-- **Real-time**: Gorilla WebSocket
-- **Database**: MongoDB
-- **Auth**: JWT (JSON Web Tokens)
-- **Cloud Storage**: Cloudinary SDK
-- **Notifications**: WebPush Library
-
-### Mobile App
-- **Framework**: Flutter (Dart)
-- **State Management**: Shared Preferences & Provider patterns
-- **Networking**: Http & WebSocket Channel
-- **UI Components**: Shimmer effects, Cached Network Images
-- **Features**: Geolocation, Image Picker, Share Plus
-
-### Web Frontend
-- **Languages**: HTML5, Vanilla JavaScript, CSS3
-- **Design**: Responsive layout with modern aesthetics
-- **PWA**: Service Workers & Manifest.json
-- **APIs**: Geolocation API, WebSocket API, Web Push API
+### Infrastructure & Deployment
+- **Database Hosting:** MongoDB Atlas
+- **Backend Hosting:** Render / Heroku
+- **Frontend Hosting:** Vercel / Firebase Hosting (Web), Google Play Store (Android)
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Getting Started
+
+Follow these instructions to get a copy of the project up and running on your local machine for development and testing.
 
 ### Prerequisites
-- [Go 1.21+](https://go.dev/dl/)
-- [Flutter SDK](https://docs.flutter.dev/get-started/install)
-- [MongoDB](https://www.mongodb.com/try/download/community)
-- Cloudinary Account (for image uploads)
-- Google Cloud Console (for Google Auth)
 
-### Installation
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (v3.0+)
+- [Go](https://go.dev/doc/install) (v1.19+)
+- [MongoDB](https://www.mongodb.com/try/download/community) (Local or Atlas Cluster)
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/divineshedrack33220/lemon16.git
-   cd lemon16
-   ```
+### 1. Backend Setup
 
-2. **Backend Setup**
-   ```bash
-   cd backend
-   # Create a .env file based on the environment variables section below
-   go mod download
-   go run main.go
-   ```
+```bash
+# Navigate to the backend directory
+cd backend
 
-3. **Mobile App Setup**
-   ```bash
-   cd ../mobile_app
-   flutter pub get
-   flutter run
-   ```
+# Install dependencies
+go mod download
 
-4. **Web Frontend**
-   The frontend is served automatically by the backend at `http://localhost:8080` (or your configured `PORT`).
+# Set up your environment variables
+cp .env.example .env
+# Edit .env and add your MONGODB_URI and JWT_SECRET
 
----
+# Run the Go server
+go run main.go
+```
+*The backend will start running on `http://localhost:10000`.*
 
-## ⚙️ Environment Variables
+### 2. Mobile / Web App Setup
 
-Create a `.env` file in the `backend/` directory:
+```bash
+# Navigate to the mobile app directory
+cd mobile_app
 
-```env
-PORT=8080
-MONGODB_URI=mongodb://localhost:27017/instaping
-JWT_SECRET=your_super_secret_key
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+# Get Flutter packages
+flutter pub get
+
+# Run on your connected device or web browser
+flutter run -d chrome
+# or 
+flutter run -d android
 ```
 
 ---
 
-## 📁 Project Structure
+## 📐 Architecture
 
-```text
-lemon16/
-├── backend/            # Go Gin Server
-│   ├── database/       # MongoDB Connection & Logic
-│   ├── handlers/       # API Request Handlers
-│   ├── middleware/     # Auth & Security Middlewares
-│   ├── models/         # Data Models (User, Post, Message)
-│   ├── routes/         # API Route Definitions
-│   ├── websocket/      # WebSocket Connection Manager
-│   └── main.go         # Entry Point
-├── frontend/           # Vanilla JS Web App (Served by Go)
-│   ├── asset/          # Static Assets
-│   ├── css/            # Stylesheets
-│   ├── js/             # Frontend Logic
-│   └── *.html          # UI Pages (index, chat, profile, etc.)
-├── mobile_app/         # Flutter Application
-│   ├── lib/            # Dart Source Code
-│   │   ├── models/     # Data Classes
-│   │   ├── screens/    # UI Screens
-│   │   └── widgets/    # Reusable Components
-│   └── pubspec.yaml    # Flutter Dependencies
-└── render.yaml         # Deployment Configuration
-```
+Zukaping uses a scalable, decoupled architecture:
+1. **Client Layer:** Flutter app manages UI state and maintains a persistent WebSocket connection for live events.
+2. **API Layer:** Go/Gin handles stateless HTTP REST requests (Auth, Profile Updates, Feed Generation).
+3. **Real-Time Layer:** A custom Go WebSocket Hub manages client connections, broadcasts messages, and handles presence (online/offline status).
+4. **Data Layer:** MongoDB efficiently stores users, chats, messages, and geospatial index data for fast location-based queries.
 
 ---
 
-## 🔌 API Endpoints (Quick Reference)
-
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/api/signup` | `POST` | Register a new user |
-| `/api/login` | `POST` | Authenticate user & get JWT |
-| `/api/me` | `GET/PUT` | Get or update current user profile |
-| `/api/feed` | `GET` | Retrieve the global social feed |
-| `/api/post` | `POST` | Create a new community post |
-| `/api/chats` | `GET` | Get list of active conversations |
-| `/api/messages/:id`| `GET` | Fetch message history for a chat |
-| `/api/users/nearby`| `GET` | Discover users based on proximity |
-| `/ws` | `WS` | WebSocket connection for real-time events |
-
----
-
-## 👤 Author
-
-**Divine Shedrack**
-- GitHub: [@divineshedrack33220](https://github.com/divineshedrack33220)
-
----
+## 🤝 Contributing
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/divineshedrack33220/zukaping/issues).
 
 ## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-Built with ❤️ by Divine Shedrack
+This project is licensed under the MIT License.
