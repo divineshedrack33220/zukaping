@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func validateEnv() {
@@ -75,6 +76,9 @@ func main() {
 		if err := database.Client.Ping(ctx, nil); err != nil {
 			log.Println("⚠️ MongoDB ping failed:", err)
 		}
+
+		// Start background DB cleanup worker for old posts (older than 50 days)
+		go startPostCleanupWorker()
 	} else {
 		log.Println("⚠️ Running WITHOUT MongoDB (degraded mode)")
 	}
@@ -147,4 +151,51 @@ func main() {
 	}
 
 	log.Println("👋 Server stopped")
+}
+
+// startPostCleanupWorker starts a background worker that regularly deletes posts older than 50 days
+func startPostCleanupWorker() {
+	log.Println("🧹 Post cleanup worker initialized (deletes posts older than 50 days)")
+	
+	// Run cleanup once immediately on startup
+	runPostCleanup()
+	
+	// Run cleanup every 12 hours
+	ticker := time.NewTicker(12 * time.Hour)
+	for range ticker.C {
+		runPostCleanup()
+	}
+}
+
+// runPostCleanup executes the database query to delete old posts
+func runPostCleanup() {
+	if database.Client == nil {
+		return
+	}
+	
+	log.Println("🧹 Running scheduled database cleanup for posts older than 50 days...")
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	
+	postsColl := database.Client.Database("coded").Collection("posts")
+	
+	// 50 days = 50 * 24 * 3600 seconds = 4,320,000 seconds
+	cutoffTime := time.Now().Unix() - 4320000
+	
+	filter := bson.M{
+		"createdAt": bson.M{"$lt": cutoffTime},
+	}
+	
+	res, err := postsColl.DeleteMany(ctx, filter)
+	if err != nil {
+		log.Printf("❌ Error during post cleanup: %v", err)
+		return
+	}
+	
+	if res.DeletedCount > 0 {
+		log.Printf("🧹 Success: Deleted %d posts older than 50 days permanently", res.DeletedCount)
+	} else {
+		log.Println("🧹 Cleanup complete: No posts older than 50 days found")
+	}
 }
