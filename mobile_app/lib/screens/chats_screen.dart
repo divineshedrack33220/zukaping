@@ -445,11 +445,24 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
   }
 
   void _showCreateGroupModal() {
+    // Get unique direct chat partners from _allChats to populate the member list by default!
+    final directPartners = _allChats
+        .where((chat) => !chat.isGroup && chat.partnerId.isNotEmpty)
+        .map((chat) => {
+              'id': chat.partnerId,
+              '_id': chat.partnerId,
+              'name': chat.partnerName,
+              'avatar': chat.partnerAvatar,
+              'photos': chat.partnerPhotos,
+              'status': chat.partnerStatus,
+            })
+        .toList();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const _CreateGroupModal(),
+      builder: (context) => _CreateGroupModal(recentPartners: directPartners),
     );
   }
 
@@ -966,7 +979,8 @@ class _GlobalUserSearchModalState extends State<_GlobalUserSearchModal> {
 }
 
 class _CreateGroupModal extends StatefulWidget {
-  const _CreateGroupModal();
+  final List<dynamic> recentPartners;
+  const _CreateGroupModal({this.recentPartners = const []});
 
   @override
   State<_CreateGroupModal> createState() => _CreateGroupModalState();
@@ -987,6 +1001,13 @@ class _CreateGroupModalState extends State<_CreateGroupModal> {
   final ImagePicker _picker = ImagePicker();
 
   @override
+  void initState() {
+    super.initState();
+    // Default search results to their recent chat partners!
+    _searchResults = List.from(widget.recentPartners);
+  }
+
+  @override
   void dispose() {
     _groupNameController.dispose();
     _groupDescController.dispose();
@@ -1002,7 +1023,8 @@ class _CreateGroupModalState extends State<_CreateGroupModal> {
         _performSearch(query.trim());
       } else {
         setState(() {
-          _searchResults = [];
+          // Revert to showing recent partners when search query is cleared!
+          _searchResults = List.from(widget.recentPartners);
         });
       }
     });
@@ -1069,7 +1091,11 @@ class _CreateGroupModalState extends State<_CreateGroupModal> {
         groupAvatarUrl = await ApiService.uploadImage(_groupAvatarBytes!, 'group_avatar.jpg');
       }
 
-      final userIds = _selectedUsers.map<String>((u) => (u['id'] ?? u['_id']).toString()).toList();
+      final userIds = _selectedUsers
+          .map<String>((u) => (u['id'] ?? u['_id'] ?? '').toString())
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
       final response = await ApiService.createGroupChat(
         userIds, 
         groupName,
@@ -1080,10 +1106,13 @@ class _CreateGroupModalState extends State<_CreateGroupModal> {
       if (mounted && response.containsKey('id')) {
         Navigator.pop(context);
         Navigator.pushNamed(context, '/chat', arguments: {'chatId': response['id']});
+      } else {
+        throw Exception(response['error'] ?? 'Unknown error from server');
       }
     } catch (e) {
+      print('❌ Failed to create group: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to create group')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to create group: $e')));
         setState(() => _isCreating = false);
       }
     }

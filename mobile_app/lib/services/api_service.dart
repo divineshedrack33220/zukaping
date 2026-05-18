@@ -8,13 +8,18 @@ import 'dart:io' as io;
 import 'package:image_picker/image_picker.dart';
 
 class ApiService {
-  // Use 10.0.2.2 for Android emulator, localhost for iOS/Web
   static String get baseUrl {
     const fromEnv = String.fromEnvironment('API_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
     
-    // Always use the live production backend by default now!
-    // This allows you to test on web and mobile without running the local Go server.
+    if (kDebugMode) {
+      if (kIsWeb) {
+        return 'http://localhost:10000/api';
+      } else {
+        return 'http://10.0.2.2:10000/api';
+      }
+    }
+    
     return 'https://zukaping.onrender.com/api';
   }
 
@@ -247,7 +252,14 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> sendMessage(String chatId, String content, {String type = 'text'}) async {
+  static Future<Map<String, dynamic>> sendMessage(
+    String chatId, 
+    String content, {
+    String type = 'text',
+    String? replyToId,
+    String? replyToContent,
+    String? replyToSenderName,
+  }) async {
     final headers = await getHeaders();
     final response = await http.post(
       Uri.parse('$baseUrl/message'),
@@ -256,6 +268,9 @@ class ApiService {
         'chatId': chatId, 
         'content': content,
         'type': type,
+        'replyToId': replyToId,
+        'replyToContent': replyToContent,
+        'replyToSenderName': replyToSenderName,
       }),
     );
     return jsonDecode(response.body);

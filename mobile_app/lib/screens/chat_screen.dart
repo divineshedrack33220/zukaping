@@ -81,6 +81,34 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
   AnimationController? _effectController;
   String? _activeEffect;
 
+  // Reply functionality
+  Message? _replyingTo;
+
+  void _startReply(Message m) {
+    setState(() {
+      _replyingTo = m;
+    });
+    // Focus the text field
+    _focusNode.requestFocus();
+  }
+
+  void _cancelReply() {
+    setState(() {
+      _replyingTo = null;
+    });
+  }
+
+  void _scrollToMessageIndex(int index) {
+    if (_scrollController.hasClients) {
+      final target = index * 80.0;
+      _scrollController.animateTo(
+        target.clamp(0.0, _scrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOutCubic,
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -399,23 +427,41 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
     _checkKeywordEffects(text);
 
     final isEmojiOnly = _isOnlyEmoji(text);
+    
+    // Save reply info locally
+    final replyId = _replyingTo?.id;
+    final replyContent = _replyingTo?.content;
+    final replySender = _replyingTo != null
+        ? (_replyingTo!.senderId == _currentUserId ? 'You' : (_partnerName ?? 'Partner'))
+        : null;
+
     final optimisticMsg = Message(
       id: 'opt_text_${DateTime.now().millisecondsSinceEpoch}',
       senderId: _currentUserId!,
       content: text,
       type: isEmojiOnly ? 'emoji' : 'text',
       createdAt: DateTime.now(),
+      replyToId: replyId,
+      replyToContent: replyContent,
+      replyToSenderName: replySender,
     );
 
     setState(() {
       _messages.insert(0, optimisticMsg);
       _isIcebreakerVisible = false;
+      _replyingTo = null; // Clear reply state
     });
     _scrollToBottom();
     SoundService.playSent();
 
     try {
-      await ApiService.sendMessage(_actualChatId!, text);
+      await ApiService.sendMessage(
+        _actualChatId!, 
+        text,
+        replyToId: replyId,
+        replyToContent: replyContent,
+        replyToSenderName: replySender,
+      );
     } catch (e) {
       if (mounted) {
         setState(() => _messages.removeWhere((m) => m.id == optimisticMsg.id));
@@ -1466,36 +1512,105 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
       ),
     );
 
-    if (isMe) return content; // Instant for own messages
-
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 300),
-      tween: Tween(begin: 0.0, end: 1.0),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, child) => Opacity(
-        opacity: value,
-        child: Transform.translate(
-          offset: Offset(-30 * (1 - value), 0),
-          child: child,
+    Widget messageWidget;
+    if (isMe) {
+      messageWidget = content;
+    } else {
+      messageWidget = TweenAnimationBuilder<double>(
+        duration: const Duration(milliseconds: 300),
+        tween: Tween(begin: 0.0, end: 1.0),
+        curve: Curves.easeOutCubic,
+        builder: (context, value, child) => Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(-30 * (1 - value), 0),
+            child: child,
+          ),
         ),
-      ),
-      child: content,
+        child: content,
+      );
+    }
+
+    return SwipeToReply(
+      isMe: isMe,
+      onReply: () => _startReply(m),
+      child: messageWidget,
     );
   }
 
 
   Widget _buildMessageContent(Message m, bool isMe) {
+    Widget? replyWidget;
+    if (m.replyToId != null && m.replyToId!.isNotEmpty) {
+      replyWidget = GestureDetector(
+        onTap: () {
+          final index = _messages.indexWhere((msg) => msg.id == m.replyToId);
+          if (index != -1) {
+            _scrollToMessageIndex(index);
+          }
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: isMe ? Colors.black.withOpacity(0.08) : const Color(0xFFF1F5F9),
+            borderRadius: const BorderRadius.all(Radius.circular(8)),
+            border: Border(
+              left: BorderSide(
+                color: isMe ? Colors.white.withOpacity(0.9) : const Color(0xFF00AEEF), 
+                width: 3.5
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.reply_rounded, 
+                    size: 12, 
+                    color: isMe ? Colors.white.withOpacity(0.9) : const Color(0xFF00AEEF),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    m.replyToSenderName ?? 'Partner',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      color: isMe ? Colors.white : const Color(0xFF00AEEF),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                m.replyToContent ?? '',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: isMe ? Colors.white.withOpacity(0.85) : Colors.black54,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget mainContent;
     if (m.type == 'emoji') {
       final emojiCount = m.content.characters.length;
       double fontSize = 32;
       if (emojiCount == 1) fontSize = 48;
       else if (emojiCount <= 3) fontSize = 38;
       
-      return Text(m.content, style: TextStyle(fontSize: fontSize));
-    }
-
-    if (m.type == 'image' || _isImageMessage(m)) {
-      return Column(
+      mainContent = Text(m.content, style: TextStyle(fontSize: fontSize));
+    } else if (m.type == 'image' || _isImageMessage(m)) {
+      mainContent = Column(
         crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           ..._buildImageContent(m),
@@ -1506,8 +1621,21 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
              ),
         ],
       );
+    } else {
+      mainContent = Text(m.content, style: TextStyle(color: isMe ? Colors.white : Colors.black87));
     }
-    return Text(m.content, style: TextStyle(color: isMe ? Colors.white : Colors.black87));
+
+    if (replyWidget != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          replyWidget,
+          mainContent,
+        ],
+      );
+    }
+    return mainContent;
   }
 
   List<Widget> _buildImageContent(Message m) {
@@ -1817,12 +1945,35 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
     showModalBottomSheet(
       context: context, backgroundColor: Colors.transparent,
       builder: (c) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: emojis.map((e) => GestureDetector(
-          onTap: () { ApiService.reactToMessage(m.id, e); Navigator.pop(c); },
-          child: Text(e, style: const TextStyle(fontSize: 30)),
-        )).toList()),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: emojis.map((e) => GestureDetector(
+                onTap: () { ApiService.reactToMessage(m.id, e); Navigator.pop(c); },
+                child: Text(e, style: const TextStyle(fontSize: 32)),
+              )).toList(),
+            ),
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.reply_rounded, color: Color(0xFF00AEEF)),
+              title: const Text('Reply to message', style: TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(c);
+                _startReply(m);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
@@ -2037,6 +2188,62 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                     ),
                   ),
                 
+                if (_replyingTo != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F2F5),
+                      borderRadius: BorderRadius.circular(16),
+                      border: const Border(
+                        left: BorderSide(color: Color(0xFF00AEEF), width: 4),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.reply_rounded, color: Color(0xFF00AEEF), size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _replyingTo!.senderId == _currentUserId ? 'You' : (_partnerName ?? 'Partner'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Color(0xFF00AEEF),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _replyingTo!.content,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[700],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _cancelReply,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close, size: 14, color: Colors.grey),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 Padding(
                   padding: const EdgeInsets.fromLTRB(8, 10, 8, 12),
                   child: Row(
@@ -2522,6 +2729,120 @@ class _ImageCarouselOverlayState extends State<_ImageCarouselOverlay> {
                 )),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class SwipeToReply extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onReply;
+  final bool isMe;
+
+  const SwipeToReply({
+    Key? key,
+    required this.child,
+    required this.onReply,
+    required this.isMe,
+  }) : super(key: key);
+
+  @override
+  _SwipeToReplyState createState() => _SwipeToReplyState();
+}
+
+class _SwipeToReplyState extends State<SwipeToReply> with SingleTickerProviderStateMixin {
+  double _dragOffset = 0.0;
+  bool _hasTriggered = false;
+  late AnimationController _springController;
+  late Animation<double> _springAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _springController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _springAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
+      CurvedAnimation(parent: _springController, curve: Curves.easeOutBack),
+    );
+  }
+
+  @override
+  void dispose() {
+    _springController.dispose();
+    super.dispose();
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    // Only allow swiping right (dx > 0) to reply
+    double delta = details.primaryDelta ?? 0.0;
+    
+    setState(() {
+      _dragOffset = (_dragOffset + delta).clamp(0.0, 90.0);
+      if (_dragOffset >= 55.0 && !_hasTriggered) {
+        _hasTriggered = true;
+        HapticFeedback.mediumImpact();
+      } else if (_dragOffset < 55.0) {
+        _hasTriggered = false;
+      }
+    });
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    if (_dragOffset >= 55.0) {
+      widget.onReply();
+    }
+    
+    // Spring elastic return animation
+    _springAnimation = Tween<double>(begin: _dragOffset, end: 0.0).animate(
+      CurvedAnimation(parent: _springController, curve: Curves.easeOutBack),
+    );
+    _springController.reset();
+    _springController.forward();
+    
+    _springController.addListener(() {
+      setState(() {
+        _dragOffset = _springAnimation.value;
+      });
+    });
+    
+    _hasTriggered = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onHorizontalDragUpdate: _onHorizontalDragUpdate,
+      onHorizontalDragEnd: _onHorizontalDragEnd,
+      behavior: HitTestBehavior.translucent,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.centerLeft,
+        children: [
+          Positioned(
+            left: -35 + (_dragOffset * 0.45),
+            child: Opacity(
+              opacity: (_dragOffset / 55.0).clamp(0.0, 1.0),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF00AEEF),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.reply_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
+          Transform.translate(
+            offset: Offset(_dragOffset, 0),
+            child: widget.child,
+          ),
         ],
       ),
     );

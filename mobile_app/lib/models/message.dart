@@ -6,6 +6,9 @@ class Message {
   final DateTime createdAt;
   bool isRead;
   final Map<String, String>? reactions;
+  final String? replyToId;
+  final String? replyToContent;
+  final String? replyToSenderName;
 
   Message({
     required this.id,
@@ -15,6 +18,9 @@ class Message {
     required this.createdAt,
     this.isRead = false,
     this.reactions,
+    this.replyToId,
+    this.replyToContent,
+    this.replyToSenderName,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -44,6 +50,9 @@ class Message {
       createdAt: parseCreatedAt(json['createdAt']),
       isRead: json['isRead'] == true,
       reactions: parseReactions(json['reactions']),
+      replyToId: json['replyToId']?.toString(),
+      replyToContent: json['replyToContent']?.toString(),
+      replyToSenderName: json['replyToSenderName']?.toString(),
     );
   }
 }
