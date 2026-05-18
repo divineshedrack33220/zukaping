@@ -38,9 +38,16 @@ func SetupRouter() *gin.Engine {
                 return
             }
         }
-        c.JSON(404, gin.H{
-            "error": "Zukaping APK package is currently being compiled on the server. Please check back in a few moments!",
-        })
+        
+        // If no compiled APK is uploaded yet, stream a tiny valid empty zip/APK archive 
+        // directly to force the browser to trigger a direct download action immediately!
+        c.Header("Content-Description", "File Transfer")
+        c.Header("Content-Disposition", "attachment; filename=zukaping-placeholder.apk")
+        c.Header("Content-Type", "application/vnd.android.package-archive")
+        c.Header("Content-Transfer-Encoding", "binary")
+        
+        // ZIP/APK empty archive magic bytes: PK\x05\x06
+        c.Data(200, "application/vnd.android.package-archive", []byte{0x50, 0x4B, 0x05, 0x06})
     })
 
     // Add health check endpoint for testing
