@@ -100,15 +100,35 @@ pipeline := mongo.Pipeline{
             }
         }
 
+        // Read optional reply fields and reactions safely
+        var replyToIDStr string
+        if rID, ok := m["replyToId"].(string); ok {
+            replyToIDStr = rID
+        } else if rObjID, ok := m["replyToId"].(primitive.ObjectID); ok && rObjID != primitive.NilObjectID {
+            replyToIDStr = rObjID.Hex()
+        }
+        var replyToContentStr string
+        if rContent, ok := m["replyToContent"].(string); ok {
+            replyToContentStr = rContent
+        }
+        var replyToSenderNameStr string
+        if rSender, ok := m["replyToSenderName"].(string); ok {
+            replyToSenderNameStr = rSender
+        }
+
         response[i] = map[string]interface{}{
-            "id":        m["_id"].(primitive.ObjectID).Hex(),
-            "chatId":    m["chatId"].(primitive.ObjectID).Hex(),
-            "senderId":  m["senderId"].(primitive.ObjectID).Hex(),
-            "sender":    senderMap,
-            "content":   m["content"],
-            "type":      m["type"],
-            "isRead":    m["isRead"],
-            "createdAt": m["createdAt"],
+            "id":                m["_id"].(primitive.ObjectID).Hex(),
+            "chatId":            m["chatId"].(primitive.ObjectID).Hex(),
+            "senderId":          m["senderId"].(primitive.ObjectID).Hex(),
+            "sender":            senderMap,
+            "content":           m["content"],
+            "type":              m["type"],
+            "isRead":            m["isRead"],
+            "createdAt":         m["createdAt"],
+            "replyToId":         replyToIDStr,
+            "replyToContent":    replyToContentStr,
+            "replyToSenderName": replyToSenderNameStr,
+            "reactions":         m["reactions"],
         }
     }
 
@@ -117,9 +137,12 @@ pipeline := mongo.Pipeline{
 
 func SendMessage(c *gin.Context) {
     var req struct {
-        ChatID  string `json:"chatId" binding:"required"`
-        Content string `json:"content" binding:"required"`
-        Type    string `json:"type,omitempty"`
+        ChatID            string `json:"chatId" binding:"required"`
+        Content           string `json:"content" binding:"required"`
+        Type              string `json:"type,omitempty"`
+        ReplyToID         string `json:"replyToId,omitempty"`
+        ReplyToContent    string `json:"replyToContent,omitempty"`
+        ReplyToSenderName string `json:"replyToSenderName,omitempty"`
     }
 
     if err := c.ShouldBindJSON(&req); err != nil {
@@ -163,13 +186,16 @@ func SendMessage(c *gin.Context) {
     messagesColl := database.Client.Database("coded").Collection("messages")
 
     message := models.Message{
-        ID:        primitive.NewObjectID(),
-        ChatID:    chatID,
-        SenderID:  userID,
-        Content:   req.Content,
-        Type:      req.Type,
-        IsRead:    false,
-        CreatedAt: time.Now().Unix(),
+        ID:                primitive.NewObjectID(),
+        ChatID:            chatID,
+        SenderID:          userID,
+        Content:           req.Content,
+        Type:              req.Type,
+        IsRead:            false,
+        CreatedAt:         time.Now().Unix(),
+        ReplyToID:         req.ReplyToID,
+        ReplyToContent:    req.ReplyToContent,
+        ReplyToSenderName: req.ReplyToSenderName,
     }
 
     _, err = messagesColl.InsertOne(ctx, message)
@@ -210,10 +236,13 @@ func SendMessage(c *gin.Context) {
             "name":   sender.Name,
             "avatar": sender.Avatar,
         },
-        "content":   message.Content,
-        "type":      message.Type,
-        "isRead":    message.IsRead,
-        "createdAt": message.CreatedAt,
+        "content":           message.Content,
+        "type":              message.Type,
+        "isRead":            message.IsRead,
+        "createdAt":         message.CreatedAt,
+        "replyToId":         req.ReplyToID,
+        "replyToContent":    req.ReplyToContent,
+        "replyToSenderName": req.ReplyToSenderName,
     }
 
     // Broadcast via WebSocket
