@@ -386,18 +386,34 @@ class ApiService {
     bool serviceEnabled;
     LocationPermission permission;
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return null;
+    try {
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
 
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return null;
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return null;
+      }
+
+      if (permission == LocationPermission.deniedForever) return null;
+
+      // Use a fast-locking LocationAccuracy.low with a strict 4-second timeout limit.
+      // This prevents the Geolocator from hanging indefinitely when GPS signal is weak/indoors.
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.low,
+        timeLimit: const Duration(seconds: 4),
+      );
+    } catch (e) {
+      print('⚠️ Geolocator getCurrentPosition timed out or failed: $e. Trying fallback.');
+      // Fallback to getLastKnownPosition if getCurrentPosition hangs or fails
+      try {
+        return await Geolocator.getLastKnownPosition();
+      } catch (err) {
+        print('⚠️ Geolocator getLastKnownPosition fallback failed: $err');
+        return null;
+      }
     }
-
-    if (permission == LocationPermission.deniedForever) return null;
-
-    return await Geolocator.getCurrentPosition();
   }
 
   static Future<bool> reactToMessage(String messageId, String emoji) async {
