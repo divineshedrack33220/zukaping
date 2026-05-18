@@ -9,6 +9,8 @@ class Message {
   final String? replyToId;
   final String? replyToContent;
   final String? replyToSenderName;
+  final String? senderName;
+  final String? senderAvatar;
 
   Message({
     required this.id,
@@ -21,6 +23,8 @@ class Message {
     this.replyToId,
     this.replyToContent,
     this.replyToSenderName,
+    this.senderName,
+    this.senderAvatar,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -53,6 +57,8 @@ class Message {
       replyToId: json['replyToId']?.toString(),
       replyToContent: json['replyToContent']?.toString(),
       replyToSenderName: json['replyToSenderName']?.toString(),
+      senderName: json['senderName']?.toString() ?? json['sender']?['name']?.toString(),
+      senderAvatar: json['senderAvatar']?.toString() ?? json['sender']?['avatar']?.toString(),
     );
   }
 }

@@ -1539,7 +1539,58 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
   }
 
 
+  Color _getSenderColor(String senderId) {
+    final hash = senderId.hashCode;
+    final colors = [
+      const Color(0xFFEC4899), // Pink
+      const Color(0xFFF59E0B), // Amber
+      const Color(0xFF10B981), // Emerald
+      const Color(0xFF6366F1), // Indigo
+      const Color(0xFF8B5CF6), // Purple
+      const Color(0xFFEF4444), // Red
+      const Color(0xFF06B6D4), // Cyan
+      const Color(0xFF14B8A6), // Teal
+    ];
+    return colors[hash.abs() % colors.length];
+  }
+
+  String _getSenderName(Message m) {
+    if (m.senderName != null && m.senderName!.isNotEmpty) {
+      return m.senderName!;
+    }
+    
+    // Fallback: look up in _groupParticipants profiles
+    if (_groupParticipants.isNotEmpty) {
+      final profile = _groupParticipants.firstWhere(
+        (p) => (p['id']?.toString() == m.senderId || p['_id']?.toString() == m.senderId),
+        orElse: () => null,
+      );
+      if (profile != null && profile['name'] != null) {
+        return profile['name'].toString();
+      }
+    }
+    
+    return 'Member';
+  }
+
   Widget _buildMessageContent(Message m, bool isMe) {
+    Widget? senderNameWidget;
+    if (!isMe && _partnerStatus == 'group') {
+      final name = _getSenderName(m);
+      senderNameWidget = Padding(
+        padding: const EdgeInsets.only(bottom: 5),
+        child: Text(
+          name,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12.5,
+            color: _getSenderColor(m.senderId),
+            letterSpacing: 0.1,
+          ),
+        ),
+      );
+    }
+
     Widget? replyWidget;
     if (m.replyToId != null && m.replyToId!.isNotEmpty) {
       replyWidget = GestureDetector(
@@ -1625,12 +1676,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
       mainContent = Text(m.content, style: TextStyle(color: isMe ? Colors.white : Colors.black87));
     }
 
-    if (replyWidget != null) {
+    if (replyWidget != null || senderNameWidget != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          replyWidget,
+          if (senderNameWidget != null) senderNameWidget,
+          if (replyWidget != null) replyWidget,
           mainContent,
         ],
       );

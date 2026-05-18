@@ -1,6 +1,7 @@
 package routes
 
 import (
+    "embed"
     "os"
     "strings"
     "time"
@@ -12,8 +13,35 @@ import (
     "github.com/gin-gonic/gin"
 )
 
+//go:embed index.html
+var landingPageHTML string
+
 func SetupRouter() *gin.Engine {
     router := gin.Default()
+
+    // Serve landing page at root
+    router.GET("/", func(c *gin.Context) {
+        c.Data(200, "text/html; charset=utf-8", []byte(landingPageHTML))
+    })
+
+    // Serve APK download route
+    router.GET("/download", func(c *gin.Context) {
+        apkPaths := []string{
+            "app-release.apk",
+            "app.apk",
+            "../mobile_app/build/app/outputs/flutter-apk/app-release.apk",
+            "mobile_app/build/app/outputs/flutter-apk/app-release.apk",
+        }
+        for _, path := range apkPaths {
+            if _, err := os.Stat(path); err == nil {
+                c.FileAttachment(path, "zukaping.apk")
+                return
+            }
+        }
+        c.JSON(404, gin.H{
+            "error": "Zukaping APK package is currently being compiled on the server. Please check back in a few moments!",
+        })
+    })
 
     // Add health check endpoint for testing
     router.GET("/api/health", func(c *gin.Context) {
