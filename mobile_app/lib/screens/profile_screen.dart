@@ -61,8 +61,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    setState(() => _isLoading = true);
+    // Fast cache load
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_profile');
+      if (cached != null && _user == null) {
+        final profileData = jsonDecode(cached);
+        if (mounted) {
+          setState(() {
+            _user = User.fromJson(profileData);
+            _isLoading = false;
+          });
+        }
+      } else if (_user == null) {
+        setState(() => _isLoading = true);
+      }
+    } catch (e) {
+      print('Cache load error: $e');
+      if (_user == null) setState(() => _isLoading = true);
+    }
 
+    // Network load silently
     try {
       final data = await ApiService.getProfile();
       if (mounted) {
@@ -73,7 +92,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && _user == null) {
         setState(() {
           _isLoading = false;
           _error = 'Failed to load profile';
@@ -113,8 +132,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (image != null) {
       try {
-        final bytes = await image.readAsBytes();
-        final url = await ApiService.uploadImage(bytes, image.name);
+        final url = await ApiService.uploadImage(image, image.name);
         if (url != null && mounted) {
           await ApiService.updateProfile({'avatar': url});
           _showToast('Profile photo updated!');
@@ -465,10 +483,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildProfileContent() {
     if (_user == null) return const SizedBox();
 
-    final photos = _user!.photos;
+    final photos = _user!.photos.where((p) => p.isNotEmpty).toList();
     final effectiveAvatar = (_user!.avatar != null && _user!.avatar!.isNotEmpty)
         ? _user!.avatar
-        : (_user!.photos.isNotEmpty ? _user!.photos.first : null);
+        : (photos.isNotEmpty ? photos.first : null);
 
     return RefreshIndicator(
       onRefresh: _loadProfile,

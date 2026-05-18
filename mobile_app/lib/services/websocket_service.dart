@@ -17,29 +17,59 @@ class WebSocketService {
     final token = await ApiService.getToken();
     if (token == null) return;
     
-    _channel = WebSocketChannel.connect(Uri.parse('$wsUrl?token=$token'));
-    _channel!.stream.listen(
-      (data) {
-        try {
-          final message = jsonDecode(data);
-          _controller.add(message);
-        } catch (e) {
-          print('Error decoding WebSocket message: $e');
-        }
-      },
-      onDone: () {
-        print('WebSocket closed');
-        _channel = null;
-      },
-      onError: (error) {
-        print('WebSocket error: $error');
-        _channel = null;
-      },
-    );
+    print('🔄 Attempting WebSocket connection to $wsUrl...');
+    try {
+      _channel = WebSocketChannel.connect(Uri.parse('$wsUrl?token=$token'));
+      print('✅ WebSocket connected successfully!');
+      _flushQueue();
+      
+      _channel!.stream.listen(
+        (data) {
+          try {
+            print('📥 WebSocket received: $data');
+            final message = jsonDecode(data);
+            _controller.add(message);
+          } catch (e) {
+            print('❌ Error decoding WebSocket message: $e');
+          }
+        },
+        onDone: () {
+          print('⚠️ WebSocket closed normally. Reconnecting in 5s...');
+          _channel = null;
+          Future.delayed(const Duration(seconds: 5), connect);
+        },
+        onError: (error) {
+          print('❌ WebSocket error: $error. Reconnecting in 5s...');
+          _channel = null;
+          Future.delayed(const Duration(seconds: 5), connect);
+        },
+      );
+    } catch (e) {
+      print('❌ WebSocket connection error: $e. Reconnecting in 5s...');
+      _channel = null;
+      Future.delayed(const Duration(seconds: 5), connect);
+    }
+  }
+
+  static final List<String> _queue = [];
+
+  static void _flushQueue() {
+    if (_channel != null && _queue.isNotEmpty) {
+      for (final msg in _queue) {
+        _channel!.sink.add(msg);
+      }
+      _queue.clear();
+    }
   }
 
   static void send(Map<String, dynamic> data) {
-    _channel?.sink.add(jsonEncode(data));
+    final msg = jsonEncode(data);
+    if (_channel != null) {
+      _channel!.sink.add(msg);
+    } else {
+      _queue.add(msg);
+      connect();
+    }
   }
 
   static void disconnect() {

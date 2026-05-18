@@ -111,7 +111,10 @@ class _NearbyScreenState extends State<NearbyScreen> {
                         itemBuilder: (context, index) {
                           final user = _users[index];
                           final name = user['name']?.toString() ?? 'User';
-                          final avatar = user['avatar']?.toString();
+                          final avatar = user['avatar']?.toString() ?? '';
+                          final photos = (user['photos'] as List<dynamic>?)?.map((e) => e.toString()).where((e) => e.isNotEmpty && !e.contains('Portrait_Placeholder.png')).toList() ?? [];
+                          final hasAvatar = avatar.isNotEmpty && !avatar.contains('Portrait_Placeholder.png');
+                          final effectiveAvatar = hasAvatar ? avatar : (photos.isNotEmpty ? photos.first : null);
                           final distance = _formatDistance(user['distance']);
                           final userId = user['id']?.toString() ?? '';
 
@@ -121,8 +124,8 @@ class _NearbyScreenState extends State<NearbyScreen> {
                             child: ListTile(
                               leading: CircleAvatar(
                                 radius: 28,
-                                backgroundImage: avatar != null && avatar.isNotEmpty ? CachedNetworkImageProvider(avatar) : null,
-                                child: avatar == null || avatar.isEmpty ? Text(name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)) : null,
+                                backgroundImage: effectiveAvatar != null && effectiveAvatar.isNotEmpty ? CachedNetworkImageProvider(effectiveAvatar) : null,
+                                child: effectiveAvatar == null || effectiveAvatar.isEmpty ? Text(name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)) : null,
                               ),
                               title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
                               subtitle: Text(distance),

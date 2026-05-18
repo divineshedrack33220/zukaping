@@ -63,7 +63,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _nameController.text = data['name'] ?? '';
       _usernameController.text = data['username'] ?? '';
       _bioController.text = data['bio'] ?? '';
-      _currentAvatar = data['avatar'];
+      final av = data['avatar']?.toString() ?? '';
+      _currentAvatar = (av.isEmpty || av.contains('Portrait_Placeholder.png')) ? null : av;
       _gender = data['gender'];
       _status = data['status'];
       
@@ -73,8 +74,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       
       final existingPhotos = data['photos'] as List<dynamic>?;
       if (existingPhotos != null) {
-        for (int i = 0; i < existingPhotos.length && i < 6; i++) {
-          _photos[i] = existingPhotos[i] as String?;
+        int idx = 0;
+        for (final item in existingPhotos) {
+          final url = item?.toString() ?? '';
+          if (url.isNotEmpty && !url.contains('Portrait_Placeholder.png') && idx < 6) {
+            _photos[idx] = url;
+            idx++;
+          }
         }
       }
       
@@ -105,8 +111,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (image != null) {
       // Upload photo immediately
       try {
-        final bytes = await image.readAsBytes();
-        final url = await ApiService.uploadImage(bytes, image.name);
+        final url = await ApiService.uploadImage(image, image.name);
         if (url != null) {
           setState(() {
             _photos[index] = url;
@@ -139,15 +144,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       // Upload new avatar if selected
       String? avatarUrl = _currentAvatar;
       if (_newAvatarFile != null) {
-        final bytes = await _newAvatarFile!.readAsBytes();
-        avatarUrl = await ApiService.uploadImage(bytes, _newAvatarFile!.name);
+        avatarUrl = await ApiService.uploadImage(_newAvatarFile, _newAvatarFile!.name);
       }
 
       // Upload any new photos not yet uploaded
       for (int i = 0; i < 6; i++) {
         if (_newPhotoFiles[i] != null) {
-          final bytes = await _newPhotoFiles[i]!.readAsBytes();
-          final url = await ApiService.uploadImage(bytes, _newPhotoFiles[i]!.name);
+          final url = await ApiService.uploadImage(_newPhotoFiles[i], _newPhotoFiles[i]!.name);
           if (url != null) {
             _photos[i] = url;
             _newPhotoFiles[i] = null;
@@ -176,7 +179,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Navigator.pop(context, true); // Return true to indicate changes
       }
     } catch (e) {
-      _showToast('Failed to update profile');
+      print('Profile update error: $e');
+      _showToast('Failed to update profile: $e');
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -254,7 +258,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     ? (kIsWeb 
                                         ? Image.network(_newAvatarFile!.path, fit: BoxFit.cover)
                                         : Image.file(io.File(_newAvatarFile!.path), fit: BoxFit.cover))
-                                    : _currentAvatar != null
+                                    : (_currentAvatar != null && _currentAvatar!.isNotEmpty)
                                         ? CachedNetworkImage(
                                             imageUrl: _currentAvatar!,
                                             fit: BoxFit.cover,
@@ -264,7 +268,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                             errorWidget: (context, url, error) =>
                                                 _buildPlaceholderAvatar(),
                                           )
-                                        : _buildPlaceholderAvatar(),
+                                        : (_photos.any((p) => p != null && p!.isNotEmpty)
+                                            ? CachedNetworkImage(
+                                                imageUrl: _photos.firstWhere((p) => p != null && p!.isNotEmpty)!,
+                                                fit: BoxFit.cover,
+                                                placeholder: (context, url) => Container(
+                                                  color: Colors.grey[200],
+                                                ),
+                                                errorWidget: (context, url, error) =>
+                                                    _buildPlaceholderAvatar(),
+                                              )
+                                            : _buildPlaceholderAvatar()),
                               ),
                             ),
                             Positioned(

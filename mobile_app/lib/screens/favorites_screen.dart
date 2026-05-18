@@ -2,6 +2,7 @@ import "chat_screen.dart";
 import "dart:convert";
 import "dart:async";
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../widgets/custom_bottom_nav_bar.dart';
@@ -10,6 +11,7 @@ import '../services/websocket_service.dart';
 import '../models/user.dart';
 import '../widgets/app_logo.dart';
 import '../services/sound_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
 
@@ -83,6 +85,25 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
   }
 
   Future<void> _loadFavorites({int attempt = 1}) async {
+    // Fast cache load
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_favorites');
+      if (cached != null && _favorites.isEmpty) {
+        final favoritesData = jsonDecode(cached) as List;
+        if (mounted) {
+          setState(() {
+            _favorites = favoritesData.cast<Map<String, dynamic>>();
+            _filteredFavorites = List.from(_favorites);
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Cache load error: $e');
+    }
+
+    // Network load silently
     try {
       final favorites = await ApiService.getFavorites();
       if (mounted) {
@@ -92,19 +113,20 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
           _isLoading = false;
           _error = null;
         });
+        // Update cache
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cached_favorites', jsonEncode(favorites));
       }
     } catch (e) {
       print('Favorites load error: $e');
       if (attempt < 3) {
         await Future.delayed(Duration(seconds: 2));
         _loadFavorites(attempt: attempt + 1);
-      } else {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _error = 'Failed to load favorites. Please check your connection.';
-          });
-        }
+      } else if (mounted && _favorites.isEmpty) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Failed to load favorites. Pull to refresh.';
+        });
       }
     }
   }
@@ -187,7 +209,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
 
   Future<void> _removeFavorite(String userId, int index) async {
     try {
-      // await ApiService.toggleFavorite(userId);
+      await ApiService.toggleFavorite(userId);
       _showToast('Removed from favorites 💔');
       
       setState(() {
@@ -688,13 +710,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                     ),
                   ),
                   const SizedBox(width: 12),
-                  GestureDetector(
+                  _FavoriteActionButton(
+                    icon: Icons.favorite,
+                    tooltip: 'Remove from favorites',
                     onTap: () => _removeFavorite(targetUserId, index),
-                    child: const Icon(
-                      Icons.favorite,
-                      color: Colors.red,
-                      size: 28,
-                    ),
+                    baseColor: const Color(0xFFFFECEF),
+                    iconColor: const Color(0xFFE91E63),
                   ),
                 ],
               ),
@@ -787,6 +808,91 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                     ),
                   ]
                 : null,
+      ),
+    );
+  }
+}
+
+class _FavoriteActionButton extends StatefulWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final Color baseColor;
+  final Color iconColor;
+
+  const _FavoriteActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    required this.baseColor,
+    required this.iconColor,
+  });
+
+  @override
+  State<_FavoriteActionButton> createState() => _FavoriteActionButtonState();
+}
+
+class _FavoriteActionButtonState extends State<_FavoriteActionButton> with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: GestureDetector(
+        onTapDown: (_) => _animController.forward(),
+        onTapUp: (_) {
+          _animController.reverse();
+          HapticFeedback.mediumImpact();
+          widget.onTap();
+        },
+        onTapCancel: () => _animController.reverse(),
+        child: Tooltip(
+          message: widget.tooltip,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: widget.baseColor,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 6,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Icon(
+                widget.icon,
+                color: widget.iconColor,
+                size: 24,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

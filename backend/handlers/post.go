@@ -239,6 +239,7 @@ func GetUserPosts(c *gin.Context) {
             "avatar": fallbackAvatar,
             "status": "offline",
             "bio":    "",
+            "photos": []string{},
         }
 
         if p.User != nil {
@@ -253,6 +254,9 @@ func GetUserPosts(c *gin.Context) {
             }
             if p.User.Bio != "" {
                 userMap["bio"] = p.User.Bio
+            }
+            if p.User.Photos != nil {
+                userMap["photos"] = p.User.Photos
             }
         }
 
@@ -323,6 +327,7 @@ func GetMyPosts(c *gin.Context) {
             "avatar": fallbackAvatar,
             "status": "offline",
             "bio":    "",
+            "photos": []string{},
         }
 
         if p.User != nil {
@@ -337,6 +342,9 @@ func GetMyPosts(c *gin.Context) {
             }
             if p.User.Bio != "" {
                 userMap["bio"] = p.User.Bio
+            }
+            if p.User.Photos != nil {
+                userMap["photos"] = p.User.Photos
             }
         }
 

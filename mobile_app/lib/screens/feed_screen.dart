@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -301,6 +302,28 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
 
   Future<void> _loadFeed() async {
     print("📡 Loading feed...");
+    
+    // Fast cache load
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_feed');
+      if (cached != null && _posts.isEmpty) {
+        final feedList = jsonDecode(cached);
+        if (mounted) {
+          setState(() {
+            _posts = (feedList as List)
+                .where((p) => p != null)
+                .map((p) => Post.fromJson(p as Map<String, dynamic>))
+                .toList();
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Cache load error: $e');
+    }
+
+    // Network load silently
     try {
       final posts = await ApiService.getFeed();
       if (mounted) {
@@ -314,7 +337,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && _posts.isEmpty) {
         setState(() {
           _isLoading = false;
           _error = 'Failed to load live requests';
@@ -778,13 +801,19 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                                     fit: BoxFit.cover,
                                     errorWidget: (context, url, error) => _buildStoryPlaceholder(user.userName),
                                   )
-                                : (user.userPhotos.isNotEmpty)
+                                : (user.userPhotos.isNotEmpty && user.userPhotos.first.isNotEmpty)
                                     ? CachedNetworkImage(
                                         imageUrl: user.userPhotos.first,
                                         fit: BoxFit.cover,
                                         errorWidget: (context, url, error) => _buildStoryPlaceholder(user.userName),
                                       )
-                                    : _buildStoryPlaceholder(user.userName),
+                                    : (user.images.isNotEmpty && user.images.first.isNotEmpty)
+                                        ? CachedNetworkImage(
+                                            imageUrl: user.images.first,
+                                            fit: BoxFit.cover,
+                                            errorWidget: (context, url, error) => _buildStoryPlaceholder(user.userName),
+                                          )
+                                        : _buildStoryPlaceholder(user.userName),
                           ),
                         ),
                       ),
@@ -1055,6 +1084,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                           child: _PulseAvatar(
                             imageUrl: post.userAvatar,
                             userPhotos: post.userPhotos,
+                            postImages: post.images,
                             userName: post.userName,
                             isSuper: post.userStatus == 'super',
                           ),
@@ -1114,7 +1144,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                   // Content
                   const SizedBox(height: 12),
                   Text(
-                    post.content,
+                    post.content.replaceAll(RegExp(r'\s*\(Duration:\s*\d+\s*mins?\)\s*'), '').trim(),
                     style: const TextStyle(
                       fontSize: 16,
                       color: Color(0xFF333333),
@@ -1137,28 +1167,51 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                           ),
                         ],
                       ),
-                      Row(
-                        children: [
-                          _buildActionButton(
-                            Icons.close,
-                            'Ignore',
-                            () => _handleIgnore(post, index),
+                      if (post.userId == _currentUserId)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00AEEF).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          const SizedBox(width: 8),
-                          _buildActionButton(
-                            Icons.favorite,
-                            isFavorited ? 'Remove from favorites' : 'Add to favorites',
-                            () => _handleFavorite(post, index),
-                            color: isFavorited ? Colors.red : null,
+                          child: const Text(
+                            '✨ My Request',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF00AEEF),
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          _buildActionButton(
-                            Icons.check,
-                            'Accept request',
-                            () => _handleAccept(post),
-                          ),
-                        ],
-                      ),
+                        )
+                      else
+                        Row(
+                          children: [
+                            _FeedActionButton(
+                              icon: Icons.close,
+                              tooltip: 'Ignore',
+                              onTap: () => _handleIgnore(post, index),
+                              baseColor: const Color(0xFFF5F5F5),
+                              iconColor: const Color(0xFF757575),
+                            ),
+                            const SizedBox(width: 12),
+                            _FeedActionButton(
+                              icon: Icons.favorite_border,
+                              tooltip: isFavorited ? 'Remove from favorites' : 'Add to favorites',
+                              onTap: () => _handleFavorite(post, index),
+                              baseColor: const Color(0xFFF5F5F5),
+                              iconColor: const Color(0xFF757575),
+                              isActive: isFavorited,
+                            ),
+                            const SizedBox(width: 12),
+                            _FeedActionButton(
+                              icon: Icons.check,
+                              tooltip: 'Accept request',
+                              onTap: () => _handleAccept(post),
+                              baseColor: const Color(0xFFE5F7FD),
+                              iconColor: const Color(0xFF00AEEF),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ],
@@ -1170,24 +1223,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildActionButton(IconData icon, String tooltip, VoidCallback onTap, {Color? color}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.transparent,
-        ),
-        child: Icon(
-          icon,
-          color: color ?? const Color(0xFF333333),
-          size: 24,
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildPlaceholderAvatar(String name) {
     return Container(
@@ -1595,12 +1631,14 @@ class _AnimatedRadarPainter extends CustomPainter {
 class _PulseAvatar extends StatefulWidget {
   final String? imageUrl;
   final List<String> userPhotos;
+  final List<String> postImages;
   final String userName;
   final bool isSuper;
 
   const _PulseAvatar({
     this.imageUrl,
     this.userPhotos = const [],
+    this.postImages = const [],
     required this.userName,
     this.isSuper = false,
   });
@@ -1630,9 +1668,14 @@ class _PulseAvatarState extends State<_PulseAvatar> with SingleTickerProviderSta
   @override
   Widget build(BuildContext context) {
     final pulseColor = widget.isSuper ? Colors.deepPurpleAccent : const Color(0xFF00AEEF);
+    final validUserPhotos = widget.userPhotos.where((p) => p.isNotEmpty).toList();
+    final validPostImages = widget.postImages.where((p) => p.isNotEmpty).toList();
+
     final effectiveImageUrl = (widget.imageUrl != null && widget.imageUrl!.isNotEmpty)
         ? widget.imageUrl
-        : (widget.userPhotos.isNotEmpty ? widget.userPhotos.first : null);
+        : (validUserPhotos.isNotEmpty
+            ? validUserPhotos.first
+            : (validPostImages.isNotEmpty ? validPostImages.first : null));
     
     return AnimatedBuilder(
       animation: _controller,
@@ -1671,6 +1714,97 @@ class _PulseAvatarState extends State<_PulseAvatar> with SingleTickerProviderSta
             fontSize: 24,
             fontWeight: FontWeight.bold,
             color: Color(0xFF00AEEF),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeedActionButton extends StatefulWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final Color baseColor;
+  final Color iconColor;
+  final bool isActive;
+
+  const _FeedActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    required this.baseColor,
+    required this.iconColor,
+    this.isActive = false,
+  });
+
+  @override
+  State<_FeedActionButton> createState() => _FeedActionButtonState();
+}
+
+class _FeedActionButtonState extends State<_FeedActionButton> with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = widget.isActive ? const Color(0xFFFFECEF) : widget.baseColor;
+    final iconColor = widget.isActive ? const Color(0xFFE91E63) : widget.iconColor;
+    final iconData = widget.isActive ? Icons.favorite : widget.icon;
+
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: GestureDetector(
+        onTapDown: (_) => _animController.forward(),
+        onTapUp: (_) {
+          _animController.reverse();
+          HapticFeedback.mediumImpact();
+          widget.onTap();
+        },
+        onTapCancel: () => _animController.reverse(),
+        child: Tooltip(
+          message: widget.tooltip,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: bgColor,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 6,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Icon(
+                iconData,
+                color: iconColor,
+                size: 24,
+              ),
+            ),
           ),
         ),
       ),

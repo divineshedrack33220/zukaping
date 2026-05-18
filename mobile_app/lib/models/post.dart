@@ -47,7 +47,11 @@ class Post {
       id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
       userId: user?['id']?.toString() ?? user?['_id']?.toString() ?? json['userId']?.toString() ?? json['id']?.toString() ?? '',
       userName: user?['name']?.toString() ?? json['name']?.toString() ?? 'User',
-      userAvatar: (user?['avatar']?.toString() ?? json['avatar']?.toString() ?? '').isEmpty ? null : (user?['avatar']?.toString() ?? json['avatar']?.toString()),
+      userAvatar: () {
+        final av = user?['avatar']?.toString() ?? json['avatar']?.toString() ?? '';
+        if (av.isEmpty || av.contains('Portrait_Placeholder.png')) return null;
+        return av;
+      }(),
       userPhotos: (user?['photos'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       content: json['content']?.toString() ?? '',
       images: (json['media'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],

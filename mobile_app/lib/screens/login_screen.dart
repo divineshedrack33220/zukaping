@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/api_service.dart';
+import '../services/websocket_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? inviteCode;
@@ -20,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String _errorMessage = '';
   bool _isButtonEnabled = false;
+  bool _obscurePassword = true;
   
   final String _baseUrl = ApiService.baseUrl.replaceAll('/api', '');
   
@@ -84,9 +86,9 @@ class _LoginScreenState extends State<LoginScreen> {
             );
             
             if (result['isNewUser'] == true || result['hasCompletedOnboarding'] == false) {
-              Navigator.pushReplacementNamed(context, '/onboarding');
+              Navigator.pushNamedAndRemoveUntil(context, '/onboarding', (route) => false);
             } else {
-              Navigator.pushReplacementNamed(context, '/feed');
+              Navigator.pushNamedAndRemoveUntil(context, '/feed', (route) => false);
             }
           }
         } else {
@@ -95,9 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
-        });
+        _showGoogleFallbackOption(e.toString());
       }
     } finally {
       if (mounted) {
@@ -147,7 +147,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Login successful!')),
           );
-          Navigator.pushReplacementNamed(context, '/feed');
+          WebSocketService.connect();
+          Navigator.pushNamedAndRemoveUntil(context, '/feed', (route) => false);
         }
       } else {
         String errorMsg = 'Invalid email or password';
@@ -218,12 +219,23 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Password input
                         TextField(
                           controller: _passwordController,
-                          obscureText: true,
+                          obscureText: _obscurePassword,
                           decoration: InputDecoration(
                             hintText: 'Password',
                             filled: true,
                             fillColor: const Color(0xFFF5F5F5),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
                           ),
                         ),
                         
@@ -315,5 +327,138 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  void _showGoogleFallbackOption(String originalError) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[50],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.warning_amber_rounded, color: Colors.amber[800], size: 28),
+                ),
+                const SizedBox(width: 16),
+                const Text(
+                  'Google Auth Failed',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Google authentication failed or is not configured for this environment.\n\nError: $originalError',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 28),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: Colors.grey[300]!),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Text('Cancel', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _performDemoLogin();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00AEEF),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Text('Use Demo Account', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _performDemoLogin() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    try {
+      // 1. Try to login first
+      var result = await ApiService.login('demo@zukaping.com', 'password123');
+      
+      // 2. If login fails (user doesn't exist), try to sign up
+      if (result['error'] == true) {
+        final signupResult = await ApiService.signup({
+          'email': 'demo@zukaping.com',
+          'password': 'password123',
+          'name': 'Demo User',
+          'gender': 'Other',
+          'interestedIn': ['everyone'],
+        });
+        
+        if (signupResult['error'] != true) {
+          // Signup succeeded, now log in!
+          result = await ApiService.login('demo@zukaping.com', 'password123');
+        }
+      }
+      
+      if (result['error'] == true) {
+        throw Exception(result['message'] ?? 'Failed to authenticate Demo Account');
+      }
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', result['token']);
+      await prefs.setString('userId', result['userId']);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logged in with Demo Account!')),
+        );
+        Navigator.pushNamedAndRemoveUntil(context, '/feed', (route) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Demo login failed: ${e.toString()}';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import '../services/api_service.dart';
+import '../services/websocket_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -105,6 +106,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         
         if (profile.containsKey('_id') || profile.containsKey('id')) {
           // Token is valid, redirect to feed
+          WebSocketService.connect();
           _navigateToFeed();
         } else {
           // Token invalid
@@ -118,6 +120,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         final userId = prefs.getString('userId');
         
         if (userId != null) {
+          WebSocketService.connect();
           _navigateToFeed();
         } else {
           _navigateToLogin();

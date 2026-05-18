@@ -45,10 +45,12 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
       final profile = await ApiService.getProfile();
       if (mounted) {
         String? avatarUrl = profile['avatar'] as String?;
-        if ((avatarUrl == null || avatarUrl.isEmpty) &&
-            profile['photos'] is List &&
-            (profile['photos'] as List).isNotEmpty) {
-          avatarUrl = (profile['photos'] as List).first as String?;
+        final hasCustomAvatar = avatarUrl != null && avatarUrl.isNotEmpty && !avatarUrl.contains('Portrait_Placeholder.png');
+        if (!hasCustomAvatar && profile['photos'] is List) {
+          final photos = (profile['photos'] as List).map((e) => e.toString()).where((e) => e.isNotEmpty && !e.contains('Portrait_Placeholder.png')).toList();
+          avatarUrl = photos.isNotEmpty ? photos.first : null;
+        } else if (!hasCustomAvatar) {
+          avatarUrl = null;
         }
         final name = profile['name'] as String? ?? '';
         setState(() {

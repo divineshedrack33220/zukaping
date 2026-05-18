@@ -30,7 +30,11 @@ class User {
       name: json['name']?.toString() ?? 'User',
       username: json['username']?.toString(),
       bio: json['bio']?.toString(),
-      avatar: (json['avatar']?.toString() ?? '').isEmpty ? null : json['avatar']?.toString(),
+      avatar: () {
+        final av = json['avatar']?.toString() ?? '';
+        if (av.isEmpty || av.contains('Portrait_Placeholder.png')) return null;
+        return av;
+      }(),
       photos: (json['photos'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       gender: json['gender']?.toString() ?? 'Other',
       interestedIn: (json['interestedIn'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],

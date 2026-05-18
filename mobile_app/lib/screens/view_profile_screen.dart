@@ -155,11 +155,19 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
   List<String> _getPhotos() {
     if (_userData == null) return [];
     final photos = _userData!['photos'] as List<dynamic>?;
-    if (photos != null && photos.isNotEmpty) {
-      return photos.cast<String>();
+    final validPhotos = photos
+            ?.map((e) => e.toString())
+            .where((e) => e.isNotEmpty && !e.contains('Portrait_Placeholder.png'))
+            .toList() ??
+        [];
+    if (validPhotos.isNotEmpty) {
+      return validPhotos;
     }
     final avatar = _userData!['avatar'] as String?;
-    return avatar != null ? [avatar] : [];
+    if (avatar != null && avatar.isNotEmpty && !avatar.contains('Portrait_Placeholder.png')) {
+      return [avatar];
+    }
+    return [];
   }
 
   String _formatDistance(dynamic distance) {

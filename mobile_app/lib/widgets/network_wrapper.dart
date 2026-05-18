@@ -28,6 +28,10 @@ class _NetworkWrapperState extends State<NetworkWrapper> {
 
   Future<void> _checkInitialConnection() async {
     final results = await Connectivity().checkConnectivity();
+    final hasInternet = !results.every((result) => result == ConnectivityResult.none);
+    if (hasInternet) {
+      WebSocketService.connect();
+    }
     _updateConnectionState(results);
   }
 

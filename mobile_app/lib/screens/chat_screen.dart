@@ -15,7 +15,7 @@ import '../services/api_service.dart';
 import '../services/websocket_service.dart';
 import '../services/sound_service.dart';
 import '../models/message.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 class ChatScreen extends StatefulWidget {
   final String? chatId;
   final String? userId;
@@ -75,6 +75,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
   
   StreamSubscription<Map<String, dynamic>>? _wsSubscription;
   Timer? _typingTimer;
+  bool _showMediaMenu = false;
 
   // Effects
   AnimationController? _effectController;
@@ -121,6 +122,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
     final token = await ApiService.getToken();
     if (token == null) return;
 
+    // Proactively connect to WebSocket to ensure real-time connection
+    WebSocketService.connect();
+
     try {
       final parts = token.split('.');
       if (parts.length == 3) {
@@ -129,8 +133,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
       }
     } catch (e) {}
 
-    await _loadChatHeader();
-    await _loadMessages();
+    _actualChatId = widget.chatId;
+
+    if (_actualChatId != null) {
+      _loadMessages(); // Start loading messages instantly (doesn't block)
+      await _loadChatHeader();
+    } else {
+      await _loadChatHeader();
+      _loadMessages(); // Load messages after chat is created/found
+    }
   }
 
   Future<void> _loadChatHeader() async {
@@ -201,6 +212,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
     } catch (e) {
       print('Header error: $e');
     }
+    _subscribeToChatChannel();
   }
 
   Future<void> _loadMessages() async {
@@ -208,6 +220,26 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
       setState(() => _isLoading = false);
       return;
     }
+
+    // Fast Cache Load
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_messages_$_actualChatId');
+      if (cached != null) {
+        final decoded = jsonDecode(cached);
+        if (decoded is List && mounted) {
+          setState(() {
+            _messages = decoded.cast<Map<String, dynamic>>().map((m) => Message.fromJson(m)).toList().reversed.toList();
+            _isLoading = false;
+          });
+          _scrollToBottom();
+        }
+      }
+    } catch (e) {
+      print('Cache read error: $e');
+    }
+
+    // Background Network Fetch
     try {
       final messages = await ApiService.getMessages(_actualChatId!);
       if (mounted) {
@@ -215,10 +247,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
           _messages = messages.map((m) => Message.fromJson(m)).toList().reversed.toList();
           _isLoading = false;
         });
-        _scrollToBottom();
+        // Only scroll to bottom if we are fetching for the first time
+        // otherwise let the user read where they were.
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && _messages.isEmpty) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _subscribeToChatChannel() {
+    if (_actualChatId != null) {
+      WebSocketService.send({
+        'type': 'subscribe_chat',
+        'payload': {'chatId': _actualChatId},
+      });
     }
   }
 
@@ -226,12 +270,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
     _wsSubscription = WebSocketService.stream.listen((data) {
       _handleWebSocketMessage(data);
     });
-    if (_actualChatId != null) {
-      WebSocketService.send({
-        'type': 'subscribe_chat',
-        'payload': {'chatId': _actualChatId},
-      });
-    }
+    _subscribeToChatChannel();
   }
 
   void _handleWebSocketMessage(Map<String, dynamic> data) {
@@ -492,7 +531,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
 
     for (int i = 0; i < images.length; i++) {
       try {
-        final url = await ApiService.uploadImage(bytes[i], images[i].name);
+        final url = await ApiService.uploadImage(images[i], images[i].name);
         if (url != null) {
           uploadedUrls.add(url);
         }
@@ -1232,7 +1271,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                             itemCount: _messages.length + (_isTyping ? 1 : 0),
                             itemBuilder: (context, index) {
-                              if (index == _messages.length) return _buildTypingBubble();
+                              if (_isTyping) {
+                                if (index == 0) return _buildTypingBubble();
+                                return _buildMessageBubble(_messages[index - 1]);
+                              }
                               return _buildMessageBubble(_messages[index]);
                             },
                           ),
@@ -1785,6 +1827,119 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
     );
   }
 
+  Widget _buildAnimatedPrefixDrawer(bool hasStagedImages, List<dynamic> stagedImgs) {
+    final isTyping = _messageController.text.isNotEmpty;
+
+    if (!isTyping) {
+      _showMediaMenu = false; // Reset state when text is cleared
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _InputIconBtn(
+            icon: _showEmojiPicker ? Icons.keyboard_rounded : Icons.emoji_emotions_outlined,
+            active: _showEmojiPicker,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _showEmojiPicker = !_showEmojiPicker);
+            }
+          ),
+          const SizedBox(width: 4),
+          _InputIconBtn(
+            icon: Icons.camera_alt_outlined,
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              _takePhoto();
+            }
+          ),
+          const SizedBox(width: 4),
+          _InputIconBtn(
+            icon: Icons.add_photo_alternate_outlined,
+            active: hasStagedImages,
+            badge: hasStagedImages ? stagedImgs.length.toString() : null,
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              _pickAndSendImages();
+            }
+          ),
+        ],
+      );
+    } else {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              setState(() {
+                _showMediaMenu = !_showMediaMenu;
+              });
+            },
+            child: AnimatedRotation(
+              duration: const Duration(milliseconds: 250),
+              turns: _showMediaMenu ? 0.125 : 0.0, // Rotates 45deg to create cross effect
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: _showMediaMenu ? const Color(0xFF00AEEF).withOpacity(0.12) : Colors.grey[100],
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.add_rounded,
+                    color: Color(0xFF00AEEF),
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            child: Container(
+              decoration: const BoxDecoration(),
+              constraints: BoxConstraints(maxWidth: _showMediaMenu ? 150 : 0),
+              clipBehavior: Clip.antiAlias,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(width: 8),
+                  _InputIconBtn(
+                    icon: _showEmojiPicker ? Icons.keyboard_rounded : Icons.emoji_emotions_outlined,
+                    active: _showEmojiPicker,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _showEmojiPicker = !_showEmojiPicker);
+                    }
+                  ),
+                  const SizedBox(width: 4),
+                  _InputIconBtn(
+                    icon: Icons.camera_alt_outlined,
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      _takePhoto();
+                    }
+                  ),
+                  const SizedBox(width: 4),
+                  _InputIconBtn(
+                    icon: Icons.add_photo_alternate_outlined,
+                    active: hasStagedImages,
+                    badge: hasStagedImages ? stagedImgs.length.toString() : null,
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      _pickAndSendImages();
+                    }
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+  }
+
   Widget _buildTypingBubble() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -1886,30 +2041,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                   padding: const EdgeInsets.fromLTRB(8, 10, 8, 12),
                   child: Row(
                     children: [
-                      _InputIconBtn(
-                        icon: _showEmojiPicker ? Icons.keyboard_rounded : Icons.emoji_emotions_outlined,
-                        active: _showEmojiPicker,
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _showEmojiPicker = !_showEmojiPicker);
-                        }
-                      ),
-                      _InputIconBtn(
-                        icon: Icons.camera_alt_outlined,
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          _takePhoto();
-                        }
-                      ),
-                      _InputIconBtn(
-                        icon: Icons.add_photo_alternate_outlined,
-                        active: hasStagedImages,
-                        badge: hasStagedImages ? stagedImgs.length.toString() : null,
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          _pickAndSendImages();
-                        }
-                      ),
+                      _buildAnimatedPrefixDrawer(hasStagedImages, stagedImgs),
                       const SizedBox(width: 4),
                       // ── Message TextField (Optimized 'Fatness') ──
                       Expanded(

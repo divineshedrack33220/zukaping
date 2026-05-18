@@ -14,6 +14,7 @@ import '../widgets/app_logo.dart';
 import '../services/notification_service.dart';
 import '../services/sound_service.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
 class ChatsScreen extends StatefulWidget {
   const ChatsScreen({super.key});
 
@@ -94,6 +95,9 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
       _loadChats(),
       _loadUserStatus(),
     ]);
+
+    // Proactively connect to WebSocket to ensure real-time updates are active
+    WebSocketService.connect();
 
     _setupWebSocket();
   }
@@ -281,6 +285,26 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _loadChats() async {
+    // Fast cache load
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_chats');
+      if (cached != null && _allChats.isEmpty) {
+        final chatsData = jsonDecode(cached) as List;
+        if (mounted) {
+          setState(() {
+            _allChats = chatsData.map((c) => Chat.fromJson(c)).toList();
+            _allChats.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
+            _filterChats();
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Cache load error: $e');
+    }
+
+    // Network load silently
     try {
       final chatsData = await ApiService.getChats();
       if (mounted) {
@@ -293,7 +317,7 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && _allChats.isEmpty) {
         setState(() {
           _isLoading = false;
           _error = 'Failed to load chats';
@@ -593,13 +617,16 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
                                       fit: BoxFit.cover,
                                       errorWidget: (context, url, error) => _buildPlaceholderAvatar(chat.partnerName),
                                     )
-                                  : (chat.partnerPhotos.isNotEmpty
-                                      ? CachedNetworkImage(
-                                          imageUrl: chat.partnerPhotos.first,
-                                          fit: BoxFit.cover,
-                                          errorWidget: (context, url, error) => _buildPlaceholderAvatar(chat.partnerName),
-                                        )
-                                      : _buildPlaceholderAvatar(chat.partnerName))),
+                                  : (() {
+                                      final validPhotos = chat.partnerPhotos.where((p) => p.isNotEmpty).toList();
+                                      return validPhotos.isNotEmpty
+                                          ? CachedNetworkImage(
+                                              imageUrl: validPhotos.first,
+                                              fit: BoxFit.cover,
+                                              errorWidget: (context, url, error) => _buildPlaceholderAvatar(chat.partnerName),
+                                            )
+                                          : _buildPlaceholderAvatar(chat.partnerName);
+                                    }())),
                         ),
                       ),
                       if (chat.isOnline && !isTyping)
@@ -713,9 +740,10 @@ class _PulseAvatarState extends State<_PulseAvatar> with SingleTickerProviderSta
   }
   @override void dispose() { _controller.dispose(); super.dispose(); }
   @override Widget build(BuildContext context) {
+    final validPhotos = widget.userPhotos.where((p) => p.isNotEmpty).toList();
     final effectiveImageUrl = (widget.imageUrl != null && widget.imageUrl!.isNotEmpty)
         ? widget.imageUrl
-        : (widget.userPhotos.isNotEmpty ? widget.userPhotos.first : null);
+        : (validPhotos.isNotEmpty ? validPhotos.first : null);
 
     return AnimatedBuilder(
       animation: _controller,
@@ -881,7 +909,10 @@ class _GlobalUserSearchModalState extends State<_GlobalUserSearchModal> {
                         itemBuilder: (context, index) {
                           final user = _searchResults[index];
                           final name = user['name'] ?? 'Unknown';
-                          final avatar = user['avatar'];
+                          final avatar = user['avatar']?.toString() ?? '';
+                          final photos = (user['photos'] as List<dynamic>?)?.map((e) => e.toString()).where((e) => e.isNotEmpty).toList() ?? [];
+                          final hasAvatar = avatar.isNotEmpty && !avatar.contains('Portrait_Placeholder.png');
+                          final effectiveAvatar = hasAvatar ? avatar : (photos.isNotEmpty ? photos.first : null);
                           final id = user['id'] ?? user['_id'];
 
                           return ListTile(
@@ -889,8 +920,8 @@ class _GlobalUserSearchModalState extends State<_GlobalUserSearchModal> {
                             leading: CircleAvatar(
                               radius: 26,
                               backgroundColor: const Color(0xFFF5F5F5),
-                              backgroundImage: avatar != null ? CachedNetworkImageProvider(avatar) : null,
-                              child: avatar == null
+                              backgroundImage: effectiveAvatar != null && effectiveAvatar.isNotEmpty ? CachedNetworkImageProvider(effectiveAvatar) : null,
+                              child: effectiveAvatar == null || effectiveAvatar.isEmpty
                                   ? Text(
                                       name.isNotEmpty ? name[0].toUpperCase() : '?',
                                       style: const TextStyle(
@@ -1148,7 +1179,10 @@ class _CreateGroupModalState extends State<_CreateGroupModal> {
                 itemBuilder: (context, index) {
                   final user = _selectedUsers[index];
                   final name = user['name'] ?? 'User';
-                  final avatar = user['avatar'];
+                  final avatar = user['avatar']?.toString() ?? '';
+                  final photos = (user['photos'] as List<dynamic>?)?.map((e) => e.toString()).where((e) => e.isNotEmpty).toList() ?? [];
+                  final hasAvatar = avatar.isNotEmpty && !avatar.contains('Portrait_Placeholder.png');
+                  final effectiveAvatar = hasAvatar ? avatar : (photos.isNotEmpty ? photos.first : null);
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Stack(
@@ -1157,9 +1191,9 @@ class _CreateGroupModalState extends State<_CreateGroupModal> {
                           children: [
                             CircleAvatar(
                               radius: 26,
-                              backgroundImage: avatar != null ? CachedNetworkImageProvider(avatar) : null,
+                              backgroundImage: effectiveAvatar != null && effectiveAvatar.isNotEmpty ? CachedNetworkImageProvider(effectiveAvatar) : null,
                               backgroundColor: Colors.grey[200],
-                              child: avatar == null ? Text(name[0].toUpperCase()) : null,
+                              child: effectiveAvatar == null || effectiveAvatar.isEmpty ? Text(name[0].toUpperCase()) : null,
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -1232,7 +1266,10 @@ class _CreateGroupModalState extends State<_CreateGroupModal> {
                         itemBuilder: (context, index) {
                           final user = _searchResults[index];
                           final name = user['name'] ?? 'Unknown';
-                          final avatar = user['avatar'];
+                          final avatar = user['avatar']?.toString() ?? '';
+                          final photos = (user['photos'] as List<dynamic>?)?.map((e) => e.toString()).where((e) => e.isNotEmpty).toList() ?? [];
+                          final hasAvatar = avatar.isNotEmpty && !avatar.contains('Portrait_Placeholder.png');
+                          final effectiveAvatar = hasAvatar ? avatar : (photos.isNotEmpty ? photos.first : null);
                           final id = user['id'] ?? user['_id'];
                           final isSelected = _selectedUsers.any((u) => (u['id'] ?? u['_id']) == id);
 
@@ -1241,8 +1278,8 @@ class _CreateGroupModalState extends State<_CreateGroupModal> {
                             leading: CircleAvatar(
                               radius: 26,
                               backgroundColor: const Color(0xFFF5F5F5),
-                              backgroundImage: avatar != null ? CachedNetworkImageProvider(avatar) : null,
-                              child: avatar == null
+                              backgroundImage: effectiveAvatar != null && effectiveAvatar.isNotEmpty ? CachedNetworkImageProvider(effectiveAvatar) : null,
+                              child: effectiveAvatar == null || effectiveAvatar.isEmpty
                                   ? Text(
                                       name.isNotEmpty ? name[0].toUpperCase() : '?',
                                       style: const TextStyle(

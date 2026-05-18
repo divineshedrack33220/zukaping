@@ -93,8 +93,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       List<String> uploadedUrls = [];
       for (final image in _selectedImages) {
         try {
-          final bytes = await image.readAsBytes();
-          final url = await ApiService.uploadImage(bytes, image.name);
+          final url = await ApiService.uploadImage(image, image.name);
           if (url != null) {
             uploadedUrls.add(url);
           }
@@ -107,9 +106,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       // Create the post
       final postData = {
-        'content': '${_contentController.text.trim()} (Duration: $_selectedDuration mins)',
+        'content': _contentController.text.trim(),
         'category': _selectedCategory,
-        
+        'duration': _selectedDuration,
         if (uploadedUrls.isNotEmpty) 'media': uploadedUrls,
       };
 
