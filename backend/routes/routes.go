@@ -1,7 +1,7 @@
 package routes
 
 import (
-    "embed"
+    _ "embed"
     "os"
     "strings"
     "time"
