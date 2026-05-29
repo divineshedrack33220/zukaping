@@ -74,6 +74,8 @@ func SetupRouter() *gin.Engine {
         "http://localhost:*",
         "https://coded-backend.onrender.com",
         "https://*.onrender.com",
+        "https://zukaping.onrender.com",
+        "https://lemon16.onrender.com",
     }
     
     // Add allowed origins from environment variable

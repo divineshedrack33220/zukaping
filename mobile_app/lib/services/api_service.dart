@@ -8,19 +8,103 @@ import 'dart:io' as io;
 import 'package:image_picker/image_picker.dart';
 
 class ApiService {
+  static String? _activeBaseUrl;
+
+  static final List<String> _productionUrls = [
+    'https://zukaping.onrender.com/api',
+    'https://lemon16.onrender.com/api',
+  ];
+
+  static String get _localUrl {
+    if (kIsWeb) {
+      return 'http://localhost:10005/api';
+    } else {
+      return 'http://10.0.2.2:10005/api';
+    }
+  }
+
   static String get baseUrl {
     const fromEnv = String.fromEnvironment('API_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
     
+    if (_activeBaseUrl != null) return _activeBaseUrl!;
+    
     if (kDebugMode) {
-      if (kIsWeb) {
-        return 'http://localhost:10005/api';
-      } else {
-        return 'http://10.0.2.2:10005/api';
+      return _localUrl;
+    }
+    return _productionUrls.first;
+  }
+
+  /// Dynamically ping available servers (local, zukaping, lemon16)
+  /// and select the first active/responding one to ensure zero app failures!
+  static Future<void> initActiveUrl() async {
+    List<String> candidates = [];
+    
+    // In debug mode, try local server first
+    if (kDebugMode) {
+      candidates.add(_localUrl);
+      // Also add fallback production URLs just in case local server isn't running
+      candidates.addAll(_productionUrls);
+    } else {
+      candidates.addAll(_productionUrls);
+    }
+
+    print('🌐 Probing servers for high availability: $candidates');
+
+    for (String url in candidates) {
+      try {
+        final response = await http.get(
+          Uri.parse('$url/health'),
+        ).timeout(const Duration(milliseconds: 1500));
+        
+        if (response.statusCode == 200) {
+          _activeBaseUrl = url;
+          print('✅ Selected responding API URL: $_activeBaseUrl');
+          return;
+        }
+      } catch (e) {
+        print('⚠️ Ping failed for $url (either offline or sleeping): $e');
       }
     }
-    
-    return 'https://zukaping.onrender.com/api';
+
+    // If none responded within 1.5s, try with a longer timeout on production servers
+    print('⏳ No quick responses. Trying longer pings...');
+    for (String url in _productionUrls) {
+      try {
+        final response = await http.get(
+          Uri.parse('$url/health'),
+        ).timeout(const Duration(seconds: 4));
+        
+        if (response.statusCode == 200) {
+          _activeBaseUrl = url;
+          print('✅ Selected responding API URL (longer ping): $_activeBaseUrl');
+          return;
+        }
+      } catch (e) {
+        print('⚠️ Longer ping failed for $url: $e');
+      }
+    }
+
+    // Default fallback if all else fails
+    _activeBaseUrl = kDebugMode ? _localUrl : _productionUrls.first;
+    print('🌐 Defaulting to API URL: $_activeBaseUrl');
+  }
+
+  /// Automatically failover to the other production server if the current one has an issue
+  static void switchServer() {
+    if (kDebugMode && _activeBaseUrl == _localUrl) {
+      // If we are in debug and local failed, switch to first production
+      _activeBaseUrl = _productionUrls.first;
+    } else {
+      // Toggle between the production servers
+      final currentIndex = _productionUrls.indexOf(baseUrl);
+      if (currentIndex == -1 || currentIndex == _productionUrls.length - 1) {
+        _activeBaseUrl = _productionUrls.first;
+      } else {
+        _activeBaseUrl = _productionUrls[currentIndex + 1];
+      }
+    }
+    print('🔄 Failed over to next available server: $_activeBaseUrl');
   }
 
   static Future<String?> getToken() async {

@@ -18,10 +18,19 @@ import 'screens/group_join_screen.dart';
 import 'services/notification_service.dart';
 import 'widgets/network_wrapper.dart';
 import 'services/theme_service.dart';
+import 'services/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.initialize();
+  
+  // Probe and select the most responsive backend server for high availability
+  try {
+    await ApiService.initActiveUrl();
+  } catch (e) {
+    print('⚠️ Failed to initialize active API URL on startup: $e');
+  }
+  
   runApp(const Lemon16App());
 }
 
