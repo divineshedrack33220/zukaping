@@ -127,7 +127,8 @@ func GetChatList(c *gin.Context) {
         }
 
         if p, ok := partnerRaw.(bson.M); ok && p != nil {
-            if id, _ := p["_id"].(primitive.ObjectID); id != primitive.NilObjectID {
+            // The aggregation project stage maps _id -> id, so read "id" not "_id"
+            if id, _ := p["id"].(primitive.ObjectID); id != primitive.NilObjectID {
                 partnerMap["id"] = id.Hex()
             }
             if name, _ := p["name"].(string); name != "" {
@@ -402,7 +403,8 @@ func GetChat(c *gin.Context) {
     }
 
     if p, ok := partnerRaw.(bson.M); ok && p != nil {
-        if id, _ := p["_id"].(primitive.ObjectID); id != primitive.NilObjectID {
+        // The aggregation project stage maps _id -> id, so read "id" not "_id"
+        if id, _ := p["id"].(primitive.ObjectID); id != primitive.NilObjectID {
             partnerMap["id"] = id.Hex()
         }
         if name, _ := p["name"].(string); name != "" {

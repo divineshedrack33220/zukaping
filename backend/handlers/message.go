@@ -85,8 +85,14 @@ pipeline := mongo.Pipeline{
     for i, m := range rawMessages {
         senderProfile := m["senderProfile"]
 
+        // Safe-cast senderId: NilObjectID for system messages
+        senderIDStr := ""
+        if oid, ok := m["senderId"].(primitive.ObjectID); ok {
+            senderIDStr = oid.Hex()
+        }
+
         senderMap := map[string]interface{}{
-            "id":     m["senderId"].(primitive.ObjectID).Hex(),
+            "id":     senderIDStr,
             "name":   "Unknown",
             "avatar": fallbackAvatar,
         }
@@ -98,6 +104,9 @@ pipeline := mongo.Pipeline{
             if avatar, _ := profile["avatar"].(string); avatar != "" {
                 senderMap["avatar"] = avatar
             }
+        } else if msgType, _ := m["type"].(string); msgType == "system" {
+            senderMap["name"] = "System"
+            senderMap["avatar"] = fallbackAvatar
         }
 
         // Read optional reply fields and reactions safely
@@ -116,10 +125,20 @@ pipeline := mongo.Pipeline{
             replyToSenderNameStr = rSender
         }
 
+        // Safe-cast _id
+        msgIDStr := ""
+        if oid, ok := m["_id"].(primitive.ObjectID); ok {
+            msgIDStr = oid.Hex()
+        }
+        chatIDStr := ""
+        if oid, ok := m["chatId"].(primitive.ObjectID); ok {
+            chatIDStr = oid.Hex()
+        }
+
         response[i] = map[string]interface{}{
-            "id":                m["_id"].(primitive.ObjectID).Hex(),
-            "chatId":            m["chatId"].(primitive.ObjectID).Hex(),
-            "senderId":          m["senderId"].(primitive.ObjectID).Hex(),
+            "id":                msgIDStr,
+            "chatId":            chatIDStr,
+            "senderId":          senderIDStr,
             "sender":            senderMap,
             "content":           m["content"],
             "type":              m["type"],
@@ -367,32 +386,15 @@ func MarkAsRead(c *gin.Context) {
         return
     }
 
-    // Broadcast read receipt via WebSocket
+    // Broadcast read receipt via WebSocket — just send chatId + readerId
+    // (no need to re-fetch all read messages; the client knows to mark all as read)
     if wsManager != nil && result.ModifiedCount > 0 {
-        // Get all message IDs that were marked as read
-        cursor, err := messagesColl.Find(ctx, bson.M{
-            "chatId":   msg.ChatID,
-            "senderId": bson.M{"$ne": userID},
-            "isRead":   true,
-        })
-        if err == nil {
-            var messages []models.Message
-            if err = cursor.All(ctx, &messages); err == nil {
-                var messageIds []string
-                for _, msg := range messages {
-                    messageIds = append(messageIds, msg.ID.Hex())
-                }
-                
-                wsReadReceipt := map[string]interface{}{
-                    "chatId":     msg.ChatID.Hex(),
-                    "userId":     userID.Hex(),
-                    "messageIds": messageIds,
-                    "timestamp":  time.Now().Unix(),
-                }
-                
-                wsManager.BroadcastMessageRead(wsReadReceipt)
-            }
+        wsReadReceipt := map[string]interface{}{
+            "chatId":    msg.ChatID.Hex(),
+            "userId":    userID.Hex(),
+            "timestamp": time.Now().Unix(),
         }
+        wsManager.BroadcastMessageRead(wsReadReceipt)
     }
 
     c.JSON(http.StatusOK, gin.H{

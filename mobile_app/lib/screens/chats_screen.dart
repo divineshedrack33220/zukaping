@@ -13,6 +13,10 @@ import 'chat_screen.dart';
 import '../widgets/app_logo.dart';
 import '../services/notification_service.dart';
 import '../services/sound_service.dart';
+import '../models/room.dart';
+import '../services/room_service.dart';
+import '../widgets/room_carousel.dart';
+import 'room_chat_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 class ChatsScreen extends StatefulWidget {
@@ -25,6 +29,7 @@ class ChatsScreen extends StatefulWidget {
 class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
   List<Chat> _allChats = [];
   List<Chat> _filteredChats = [];
+  List<Room> _rooms = [];
   bool _isLoading = true;
   String? _error;
   final TextEditingController _searchController = TextEditingController();
@@ -300,15 +305,27 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
           });
         }
       }
+
+      final cachedRooms = prefs.getString('cached_rooms');
+      if (cachedRooms != null && _rooms.isEmpty) {
+        final roomsData = jsonDecode(cachedRooms) as List;
+        if (mounted) {
+          setState(() {
+            _rooms = roomsData.map((r) => Room.fromJson(r)).toList();
+          });
+        }
+      }
     } catch (e) {
       print('Cache load error: $e');
     }
 
     // Network load silently
     try {
+      final roomsData = await RoomService.getRooms();
       final chatsData = await ApiService.getChats();
       if (mounted) {
         setState(() {
+          _rooms = roomsData;
           _allChats = chatsData.map((c) => Chat.fromJson(c)).toList();
           _allChats.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
           _filterChats();
@@ -341,6 +358,17 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
   }
 
   void _navigateToChat(Chat chat) {
+    final isRoom = _rooms.any((r) => r.id == chat.id);
+    if (isRoom) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RoomChatScreen(roomId: chat.id),
+        ),
+      ).then((_) => _loadChats());
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -381,10 +409,9 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
         titleSpacing: 0,
@@ -394,6 +421,10 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
       body: Column(
         children: [
           _buildSearchBar(),
+          RoomCarousel(
+            rooms: _rooms,
+            onRefresh: _loadChats,
+          ),
           Expanded(
             child: _isLoading
                 ? _buildShimmerLoading()
@@ -409,28 +440,13 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
         currentRoute: '/chats',
         chatsCount: _allChats.fold<int>(0, (sum, chat) => sum + (chat.unreadCount)),
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: 'createGroup',
-            onPressed: _showCreateGroupModal,
-            backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF00AEEF),
-            elevation: 4,
-            child: const Icon(Icons.group_add_rounded),
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton(
-            heroTag: 'searchUsers',
-            onPressed: _showGlobalSearchModal,
-            backgroundColor: const Color(0xFF00AEEF),
-            foregroundColor: Colors.white,
-            elevation: 4,
-            child: const Icon(Icons.person_add_alt_1_rounded),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'searchUsers',
+        onPressed: _showGlobalSearchModal,
+        backgroundColor: const Color(0xFF00AEEF),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        child: const Icon(Icons.person_add_alt_1_rounded),
       ),
     );
   }
@@ -444,29 +460,30 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _showCreateGroupModal() {
-    // Get unique direct chat partners from _allChats to populate the member list by default!
-    final directPartners = _allChats
-        .where((chat) => !chat.isGroup && chat.partnerId.isNotEmpty)
-        .map((chat) => {
-              'id': chat.partnerId,
-              '_id': chat.partnerId,
-              'name': chat.partnerName,
-              'avatar': chat.partnerAvatar,
-              'photos': chat.partnerPhotos,
-              'status': chat.partnerStatus,
-            })
-        .toList();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _CreateGroupModal(recentPartners: directPartners),
-    );
-  }
+  // void _showCreateGroupModal() {
+  //   // Get unique direct chat partners from _allChats to populate the member list by default!
+  //   final directPartners = _allChats
+  //       .where((chat) => !chat.isGroup && chat.partnerId.isNotEmpty)
+  //       .map((chat) => {
+  //             'id': chat.partnerId,
+  //             '_id': chat.partnerId,
+  //             'name': chat.partnerName,
+  //             'avatar': chat.partnerAvatar,
+  //             'photos': chat.partnerPhotos,
+  //             'status': chat.partnerStatus,
+  //           })
+  //       .toList();
+  // 
+  //   showModalBottomSheet(
+  //     context: context,
+  //     isScrollControlled: true,
+  //     backgroundColor: Colors.transparent,
+  //     builder: (context) => _CreateGroupModal(recentPartners: directPartners),
+  //   );
+  // }
 
   Widget _buildStatusIndicator() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final status = _statuses[_currentStatusIndex];
     Color dotColor;
     switch (status['class']) {
@@ -483,9 +500,9 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
         margin: const EdgeInsets.only(right: 16),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[100],
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
         ),
         child: Opacity(
           opacity: _isGhostMode ? 0.6 : 1.0,
@@ -500,7 +517,7 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
               const SizedBox(width: 8),
               Text(
                 _isGhostMode ? 'Stealth' : status['text']!,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black),
               ),
             ],
           ),
@@ -510,19 +527,21 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildSearchBar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!)),
       ),
       child: TextField(
         controller: _searchController,
+        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
         decoration: InputDecoration(
           hintText: '🔍 Search chats by name or message...',
           prefixIcon: const Icon(Icons.search, color: Colors.grey),
           filled: true,
-          fillColor: Colors.grey[100],
+          fillColor: isDark ? const Color(0xFF2C2C2E) : Colors.grey[100],
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
@@ -531,6 +550,8 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildShimmerLoading() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final shimmerColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF5F5F5);
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       itemCount: 4,
@@ -539,15 +560,15 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
             children: [
-              Container(width: 56, height: 56, decoration: const BoxDecoration(color: Color(0xFFF5F5F5), shape: BoxShape.circle)),
+              Container(width: 56, height: 56, decoration: BoxDecoration(color: shimmerColor, shape: BoxShape.circle)),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(width: 120, height: 16, decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(8))),
+                    Container(width: 120, height: 16, decoration: BoxDecoration(color: shimmerColor, borderRadius: BorderRadius.circular(8))),
                     const SizedBox(height: 8),
-                    Container(width: 200, height: 14, decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(8))),
+                    Container(width: 200, height: 14, decoration: BoxDecoration(color: shimmerColor, borderRadius: BorderRadius.circular(8))),
                   ],
                 ),
               ),
@@ -588,6 +609,7 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildChatList() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       itemCount: _filteredChats.length,
@@ -620,7 +642,7 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
                     children: [
                       Container(
                         width: 60, height: 60,
-                        decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFF5F5F5)),
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF5F5F5)),
                         child: ClipOval(
                           child: chat.isOnline
                               ? _PulseAvatar(imageUrl: chat.partnerAvatar, userPhotos: chat.partnerPhotos, userName: chat.partnerName)
@@ -650,7 +672,7 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
                             decoration: BoxDecoration(
                               color: _getStatusColor(chat.partnerStatus ?? 'offline'),
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
+                              border: Border.all(color: isDark ? const Color(0xFF121212) : Colors.white, width: 2),
                             ),
                           ),
                         ),
@@ -664,14 +686,14 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
                     children: [
                       Text(chat.partnerName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
-                      if (isTyping) _buildTypingIndicator() else Text(_getLastMessagePreview(chat), style: TextStyle(color: Colors.grey[600]), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      if (isTyping) _buildTypingIndicator() else Text(_getLastMessagePreview(chat), style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(_formatTimestamp(chat.lastMessageTime), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text(_formatTimestamp(chat.lastMessageTime), style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey)),
                     if (chat.unreadCount > 0)
                       Container(
                         margin: const EdgeInsets.only(top: 8),

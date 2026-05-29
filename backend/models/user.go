@@ -1,6 +1,21 @@
 package models
 
-import "go.mongodb.org/mongo-driver/bson/primitive"
+import (
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
+
+type ProfileImage struct {
+	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	URL          string             `bson:"url" json:"url"`
+	ThumbnailURL string             `bson:"thumbnail_url" json:"thumbnail_url"`
+	IsExclusive  bool               `bson:"is_exclusive" json:"is_exclusive"`
+	Price        float64            `bson:"price" json:"price"`
+	Currency     string             `bson:"currency" json:"currency"`
+	BlurHash     string             `bson:"blur_hash" json:"blur_hash"`
+	CreatedAt    time.Time          `bson:"created_at" json:"created_at"`
+}
 
 type User struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
@@ -31,4 +46,7 @@ type User struct {
 
 	// Privacy
 	BlockedUsers []primitive.ObjectID `bson:"blockedUsers,omitempty" json:"blockedUsers,omitempty"`
+
+	// Exclusive content
+	ProfileImages []ProfileImage `bson:"profile_images,omitempty" json:"profile_images,omitempty"`
 }

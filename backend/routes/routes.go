@@ -69,8 +69,8 @@ func SetupRouter() *gin.Engine {
         "http://localhost:3000",
         "http://127.0.0.1:8080",
         "http://127.0.0.1:5500",
-        "http://localhost:10000",
-        "http://127.0.0.1:10000",
+        "http://localhost:10005",
+        "http://127.0.0.1:10005",
         "http://localhost:*",
         "https://coded-backend.onrender.com",
         "https://*.onrender.com",
@@ -136,6 +136,14 @@ func SetupRouter() *gin.Engine {
     // Matches
     protected.GET("/matches", handlers.GetMatches)
 
+    // Exclusive Content & Pay-to-Unlock
+    protected.POST("/users/me/images", handlers.UploadProfileImage)
+    protected.PATCH("/users/me/images/:id", handlers.UpdateProfileImage)
+    protected.DELETE("/users/me/images/:id", handlers.DeleteProfileImage)
+    protected.GET("/users/:id/profile", handlers.GetUserProfile)
+    protected.POST("/content/:image_id/unlock", handlers.UnlockContent)
+    protected.GET("/content/:image_id/status", handlers.CheckUnlockStatus)
+
     // Chats
     protected.GET("/chats", handlers.GetChatList)
     protected.POST("/chats", handlers.CreateChat)
@@ -162,6 +170,12 @@ func SetupRouter() *gin.Engine {
 
     // Push subscriptions
     protected.POST("/subscribe", handlers.SubscribePush)
+
+    // Rooms discovery & join routes
+    protected.GET("/rooms", handlers.ListRooms)
+    protected.GET("/rooms/:id", handlers.GetRoomDetails)
+    protected.POST("/rooms/:id/join", handlers.JoinRoom)
+    protected.DELETE("/rooms/:id/leave", handlers.LeaveRoom)
 
     // Add a catch-all for undefined API routes
     router.NoRoute(func(c *gin.Context) {

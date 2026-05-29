@@ -202,19 +202,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Edit Profile',
           style: TextStyle(
-            color: Colors.black,
+            color: isDark ? Colors.white : Colors.black,
             fontWeight: FontWeight.w600,
             fontSize: 18,
           ),
@@ -512,28 +511,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildLabel(String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w500,
-        color: Color(0xFF666666),
+        color: isDark ? Colors.grey[400] : const Color(0xFF666666),
       ),
     );
   }
 
   InputDecoration _buildInputDecoration(String hint) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return InputDecoration(
       hintText: hint,
       filled: true,
-      fillColor: Colors.grey[50],
+      fillColor: isDark ? const Color(0xFF1C1C1E) : Colors.grey[50],
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+        borderSide: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE0E0E0)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+        borderSide: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE0E0E0)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -544,16 +545,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildPhotoSlot(int index) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasPhoto = _photos[index] != null || _newPhotoFiles[index] != null;
 
     return GestureDetector(
       onTap: () => _pickPhoto(index),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.grey[50],
+          color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[50],
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: hasPhoto ? const Color(0xFF00AEEF) : const Color(0xFFE0E0E0),
+            color: hasPhoto ? const Color(0xFF00AEEF) : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE0E0E0)),
           ),
         ),
         child: Stack(
@@ -572,10 +574,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             width: double.infinity,
                             height: double.infinity,
                             placeholder: (context, url) => Container(
-                              color: Colors.grey[200],
+                              color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200],
                             ),
                             errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[200],
+                              color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200],
                               child: const Icon(Icons.broken_image, color: Colors.grey),
                             ),
                           )

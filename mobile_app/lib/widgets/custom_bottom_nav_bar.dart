@@ -68,13 +68,14 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
   @override
   Widget build(BuildContext context) {
     final double bottomPadding = MediaQuery.of(context).padding.bottom;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 60.0 + bottomPadding,
       padding: EdgeInsets.only(bottom: bottomPadding),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
         border: Border(
-          top: BorderSide(color: Colors.grey[300]!, width: 1),
+          top: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!, width: 1),
         ),
       ),
       child: Stack(
@@ -167,7 +168,8 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
     int? badgeCount,
     bool isProfile = false,
   }) {
-    final color = isActive ? const Color(0xFF00AEEF) : const Color(0xFF666666);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = isActive ? const Color(0xFF00AEEF) : (isDark ? Colors.grey[400]! : const Color(0xFF666666));
 
     return Expanded(
       child: InkWell(
@@ -189,7 +191,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isActive ? const Color(0xFF00AEEF) : Colors.grey[300]!,
+                        color: isActive ? const Color(0xFF00AEEF) : (isDark ? const Color(0xFF3A3A3C) : Colors.grey[300]!),
                         width: 2,
                       ),
                     ),

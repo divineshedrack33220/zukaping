@@ -650,11 +650,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
         final isCurrentUserAdmin = _groupAdminIds.contains(_currentUserId);
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final isDarkModal = Theme.of(context).brightness == Brightness.dark;
             return Container(
               height: MediaQuery.of(context).size.height * 0.85,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              decoration: BoxDecoration(
+                color: isDarkModal ? const Color(0xFF1C1C1E) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Column(
                 children: [
@@ -663,7 +664,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                     width: 48,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color: isDarkModal ? Colors.grey[800] : Colors.grey[300],
                       borderRadius: BorderRadius.circular(2.5),
                     ),
                   ),
@@ -673,7 +674,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                   CircleAvatar(
                     radius: 45,
                     backgroundImage: _partnerAvatar != null ? CachedNetworkImageProvider(_partnerAvatar!) : null,
-                    backgroundColor: Colors.grey[200],
+                    backgroundColor: isDarkModal ? Colors.grey[800] : Colors.grey[200],
                     child: _partnerAvatar == null
                         ? Text(
                             _partnerName != null && _partnerName!.isNotEmpty ? _partnerName![0].toUpperCase() : 'G',
@@ -684,7 +685,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                   const SizedBox(height: 12),
                   Text(
                     _partnerName ?? 'Group Chat',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDarkModal ? Colors.white : Colors.black),
                   ),
                   const SizedBox(height: 8),
                   Padding(
@@ -694,7 +695,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                           ? _groupDescription!
                           : 'No description provided.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      style: TextStyle(color: isDarkModal ? Colors.grey[400] : Colors.grey[600], fontSize: 14),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -729,7 +730,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                             icon: const Icon(Icons.link, size: 14),
                             label: const Text('Invite Link', style: TextStyle(fontSize: 12)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
+                              backgroundColor: isDarkModal ? const Color(0xFF2C2C2E) : Colors.white,
                               foregroundColor: const Color(0xFF00AEEF),
                               side: const BorderSide(color: Color(0xFF00AEEF)),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -743,7 +744,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                             icon: const Icon(Icons.person_add_alt_1_rounded, size: 14),
                             label: const Text('Add Member', style: TextStyle(fontSize: 12)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
+                              backgroundColor: isDarkModal ? const Color(0xFF2C2C2E) : Colors.white,
                               foregroundColor: const Color(0xFF00AEEF),
                               side: const BorderSide(color: Color(0xFF00AEEF)),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -775,7 +776,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                       children: [
                         Text(
                           'Members (${_groupParticipants.length})',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDarkModal ? Colors.white : Colors.black),
                         ),
                         const Icon(Icons.people_outline, color: Colors.grey),
                       ],
@@ -800,7 +801,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                           contentPadding: EdgeInsets.zero,
                           leading: CircleAvatar(
                             backgroundImage: memberAvatar != null ? CachedNetworkImageProvider(memberAvatar) : null,
-                            backgroundColor: Colors.grey[100],
+                            backgroundColor: isDarkModal ? Colors.grey[800] : Colors.grey[100],
                             child: memberAvatar == null ? Text(memberName[0].toUpperCase()) : null,
                           ),
                           title: Row(
@@ -809,7 +810,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                                 memberName,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: isSelf ? const Color(0xFF00AEEF) : Colors.black87,
+                                  color: isSelf ? const Color(0xFF00AEEF) : (isDarkModal ? Colors.white70 : Colors.black87),
                                 ),
                               ),
                               if (isSelf) ...[
@@ -918,11 +919,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final isDarkModal = Theme.of(context).brightness == Brightness.dark;
             return Container(
               height: MediaQuery.of(context).size.height * 0.8,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              decoration: BoxDecoration(
+                color: isDarkModal ? const Color(0xFF1C1C1E) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -933,14 +935,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                       width: 48,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: Colors.grey[300],
+                        color: isDarkModal ? Colors.grey[800] : Colors.grey[300],
                         borderRadius: BorderRadius.circular(2.5),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Edit Group Info',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDarkModal ? Colors.white : Colors.black),
                     ),
                     const SizedBox(height: 20),
 
@@ -957,7 +959,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                       },
                       child: CircleAvatar(
                         radius: 40,
-                        backgroundColor: Colors.grey[200],
+                        backgroundColor: isDarkModal ? Colors.grey[800] : Colors.grey[200],
                         backgroundImage: localAvatarBytes != null
                             ? MemoryImage(localAvatarBytes!)
                             : (_partnerAvatar != null ? CachedNetworkImageProvider(_partnerAvatar!) : null) as ImageProvider?,
@@ -971,11 +973,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                     // Name Field
                     TextField(
                       controller: nameController,
+                      style: TextStyle(color: isDarkModal ? Colors.white : Colors.black87),
                       decoration: InputDecoration(
                         labelText: 'Group Name',
-                        prefixIcon: const Icon(Icons.group),
+                        labelStyle: TextStyle(color: isDarkModal ? Colors.grey[400] : Colors.grey[600]),
+                        prefixIcon: Icon(Icons.group, color: isDarkModal ? Colors.grey[400] : Colors.grey[600]),
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: isDarkModal ? const Color(0xFF2C2C2E) : Colors.grey[100],
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                       ),
                     ),
@@ -985,11 +989,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                     TextField(
                       controller: descController,
                       maxLines: 3,
+                      style: TextStyle(color: isDarkModal ? Colors.white : Colors.black87),
                       decoration: InputDecoration(
                         labelText: 'Description',
-                        prefixIcon: const Icon(Icons.description),
+                        labelStyle: TextStyle(color: isDarkModal ? Colors.grey[400] : Colors.grey[600]),
+                        prefixIcon: Icon(Icons.description, color: isDarkModal ? Colors.grey[400] : Colors.grey[600]),
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: isDarkModal ? const Color(0xFF2C2C2E) : Colors.grey[100],
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                       ),
                     ),
@@ -1071,13 +1077,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
       showDialog(
         context: context,
         builder: (context) {
+          final isDarkModal = Theme.of(context).brightness == Brightness.dark;
           return AlertDialog(
+            backgroundColor: isDarkModal ? const Color(0xFF1C1C1E) : Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             title: Row(
               children: [
                 const Icon(Icons.link_rounded, color: Color(0xFF00AEEF), size: 28),
                 const SizedBox(width: 8),
-                const Text('Group Invite Link', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                Text('Group Invite Link', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: isDarkModal ? Colors.white : Colors.black)),
               ],
             ),
             content: Column(
@@ -1086,19 +1094,19 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
               children: [
                 Text(
                   'Anyone with this link can join this group chat, even if they are not currently a user.',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  style: TextStyle(color: isDarkModal ? Colors.grey[400] : Colors.grey[600], fontSize: 13),
                 ),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: isDarkModal ? const Color(0xFF2C2C2E) : Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
+                    border: Border.all(color: isDarkModal ? Colors.grey[800]! : Colors.grey[300]!),
                   ),
                   child: SelectableText(
                     inviteUrl,
-                    style: const TextStyle(fontSize: 13, fontFamily: 'monospace', color: Colors.black87),
+                    style: TextStyle(fontSize: 13, fontFamily: 'monospace', color: isDarkModal ? Colors.white70 : Colors.black87),
                   ),
                 ),
               ],
@@ -1143,11 +1151,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final isDarkModal = Theme.of(context).brightness == Brightness.dark;
             return Container(
               height: MediaQuery.of(context).size.height * 0.75,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              decoration: BoxDecoration(
+                color: isDarkModal ? const Color(0xFF1C1C1E) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1158,26 +1167,28 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                       width: 48,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: Colors.grey[300],
+                        color: isDarkModal ? Colors.grey[800] : Colors.grey[300],
                         borderRadius: BorderRadius.circular(2.5),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Add Members to Group',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDarkModal ? Colors.white : Colors.black),
                     ),
                     const SizedBox(height: 16),
 
                     // Search input
                     TextField(
                       controller: searchController,
+                      style: TextStyle(color: isDarkModal ? Colors.white : Colors.black87),
                       decoration: InputDecoration(
                         hintText: 'Search users by name...',
-                        prefixIcon: const Icon(Icons.search),
+                        hintStyle: TextStyle(color: isDarkModal ? Colors.grey[500] : Colors.grey[600]),
+                        prefixIcon: Icon(Icons.search, color: isDarkModal ? Colors.grey[400] : Colors.grey[600]),
                         suffixIcon: searchController.text.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear),
+                                icon: const Icon(Icons.clear, color: Colors.grey),
                                 onPressed: () {
                                   searchController.clear();
                                   setModalState(() {
@@ -1187,7 +1198,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                               )
                             : null,
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: isDarkModal ? const Color(0xFF2C2C2E) : Colors.grey[100],
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                       ),
                       onChanged: (val) async {
@@ -1242,10 +1253,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                                       contentPadding: EdgeInsets.zero,
                                       leading: CircleAvatar(
                                         backgroundImage: uAvatar != null ? CachedNetworkImageProvider(uAvatar) : null,
-                                        backgroundColor: Colors.grey[100],
+                                        backgroundColor: isDarkModal ? Colors.grey[800] : Colors.grey[100],
                                         child: uAvatar == null ? Text(uName[0].toUpperCase()) : null,
                                       ),
-                                      title: Text(uName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                      title: Text(uName, style: TextStyle(fontWeight: FontWeight.w600, color: isDarkModal ? Colors.white : Colors.black87)),
                                       trailing: isAlreadyMember
                                           ? const Text(
                                               'Member',
@@ -1299,7 +1310,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Stack(
         children: [
           const _LiquidBackground(),
@@ -1345,8 +1355,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
             bottom: 12,
           ),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.7),
-            border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.08))),
+            color: (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF121212) : Colors.white).withOpacity(0.7),
+            border: Border(bottom: BorderSide(color: (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black).withOpacity(0.08))),
           ),
           child: Row(
             children: [
@@ -1444,6 +1454,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
       {'e': '✨', 't': 'Love your profile!'},
       {'e': '🍕', 't': 'Best food in town?'},
     ];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 90,
       margin: const EdgeInsets.symmetric(vertical: 10),
@@ -1455,10 +1466,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
           child: Container(
             width: 150, margin: const EdgeInsets.only(right: 12),
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey[200]!)),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+            ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(o['e']!, style: const TextStyle(fontSize: 18)),
-              Text(o['t']!, style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(o['t']!, style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
             ]),
           ),
         )).toList(),
@@ -1488,7 +1503,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ) : null,
-                color: isMe ? null : Colors.white,
+                color: isMe ? null : (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1C1C1E) : Colors.white),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20), topRight: const Radius.circular(20),
                   bottomLeft: Radius.circular(isMe ? 20 : 4), bottomRight: Radius.circular(isMe ? 4 : 20),
@@ -1604,7 +1619,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: isMe ? Colors.black.withOpacity(0.08) : const Color(0xFFF1F5F9),
+            color: isMe ? Colors.black.withOpacity(0.08) : (Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.08) : const Color(0xFFF1F5F9)),
             borderRadius: const BorderRadius.all(Radius.circular(8)),
             border: Border(
               left: BorderSide(
@@ -1641,7 +1656,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                 m.replyToContent ?? '',
                 style: TextStyle(
                   fontSize: 11.5,
-                  color: isMe ? Colors.white.withOpacity(0.85) : Colors.black54,
+                  color: isMe ? Colors.white.withOpacity(0.85) : (Theme.of(context).brightness == Brightness.dark ? Colors.grey[300] : Colors.black54),
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1668,12 +1683,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
           if (m.content.contains('"') && !m.content.startsWith('[')) // If it's a mix or has a caption
              Padding(
                padding: const EdgeInsets.only(top: 8),
-               child: Text(m.content, style: TextStyle(color: isMe ? Colors.white : Colors.black87)),
+               child: Text(m.content, style: TextStyle(color: isMe ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87))),
              ),
         ],
       );
     } else {
-      mainContent = Text(m.content, style: TextStyle(color: isMe ? Colors.white : Colors.black87));
+      mainContent = Text(m.content, style: TextStyle(color: isMe ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)));
     }
 
     if (replyWidget != null || senderNameWidget != null) {
@@ -1818,40 +1833,43 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black87,
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Media, Links, and Docs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                Text('${allImages.length} items', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-              ],
+        pageBuilder: (context, animation, secondaryAnimation) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return Scaffold(
+            backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+            appBar: AppBar(
+              elevation: 0,
+              backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+              foregroundColor: isDark ? Colors.white : Colors.black87,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Media, Links, and Docs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('${allImages.length} items', style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600])),
+                ],
+              ),
+              centerTitle: false,
             ),
-            centerTitle: false,
-          ),
-          body: GridView.builder(
-            padding: const EdgeInsets.all(2),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3, mainAxisSpacing: 2, crossAxisSpacing: 2,
+            body: GridView.builder(
+              padding: const EdgeInsets.all(2),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3, mainAxisSpacing: 2, crossAxisSpacing: 2,
+              ),
+              itemCount: allImages.length,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () => _openImageCarousel(allImages, index),
+                  child: CachedNetworkImage(
+                    imageUrl: allImages[index],
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[100]),
+                    errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+                  ),
+                );
+              },
             ),
-            itemCount: allImages.length,
-            itemBuilder: (context, index) {
-              return GestureDetector(
-                onTap: () => _openImageCarousel(allImages, index),
-                child: CachedNetworkImage(
-                  imageUrl: allImages[index],
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(color: Colors.grey[100]),
-                  errorWidget: (context, url, error) => const Icon(Icons.broken_image),
-                ),
-              );
-            },
-          ),
-        ),
+          );
+        },
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
             position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(animation),
@@ -1876,11 +1894,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
       return CachedNetworkImage(
         imageUrl: urlOrId, width: width, height: height, fit: BoxFit.cover,
         placeholder: (context, url) => Container(
-          color: Colors.grey[200],
+          color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1C1C1E) : Colors.grey[200],
           child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         ),
         errorWidget: (context, url, error) => Container(
-          color: Colors.grey[200],
+          color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1C1C1E) : Colors.grey[200],
           child: const Icon(Icons.broken_image, color: Colors.grey),
         ),
       );
@@ -1888,7 +1906,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
     // Fallback placeholder for unknown
     return Container(
       width: width, height: height,
-      color: Colors.grey[200],
+      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1C1C1E) : Colors.grey[200],
       child: const Center(child: Icon(Icons.image, color: Colors.grey)),
     );
   }
@@ -1909,7 +1927,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
           const SizedBox(height: 20),
           Text(
             'No messages yet',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.grey[800]),
           ),
           const SizedBox(height: 8),
           Padding(
@@ -1982,11 +2000,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
 
   Widget _buildReactionBadge(Message m) {
     final emoji = m.reactions!.values.first;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Positioned(
       bottom: -4, right: m.senderId == _currentUserId ? 4 : null, left: m.senderId != _currentUserId ? 4 : null,
       child: Container(
         padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey[100]!)),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2C2C2E) : Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[100]!),
+        ),
         child: Text(emoji, style: const TextStyle(fontSize: 12)),
       ),
     );
@@ -1994,13 +2017,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
 
   void _showReactionPicker(Message m) {
     final emojis = ['❤️', '😂', '🔥', '👍', '🙏'];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context, backgroundColor: Colors.transparent,
       builder: (c) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2157,6 +2181,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
   }
 
   Widget _buildInputArea() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final stagedImgs = _stagedImages ?? [];
     final stagedBts = _stagedBytes ?? [];
     final uploading = _isUploading ?? false;
@@ -2170,9 +2195,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
         filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.75),
+            color: (isDark ? const Color(0xFF121212) : Colors.white).withOpacity(0.75),
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 15, offset: const Offset(0, -5))],
-            border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.05))),
+            border: Border(top: BorderSide(color: (isDark ? Colors.white : Colors.black).withOpacity(0.05))),
           ),
           child: SafeArea(
             top: false,
@@ -2245,7 +2270,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF0F2F5),
+                      color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5),
                       borderRadius: BorderRadius.circular(16),
                       border: const Border(
                         left: BorderSide(color: Color(0xFF00AEEF), width: 4),
@@ -2273,7 +2298,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                                 _replyingTo!.content,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.grey[700],
+                                  color: isDark ? Colors.grey[300] : Colors.grey[700],
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -2286,10 +2311,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: Colors.grey[300],
+                              color: isDark ? Colors.grey[800] : Colors.grey[300],
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.close, size: 14, color: Colors.grey),
+                            child: Icon(Icons.close, size: 14, color: isDark ? Colors.white70 : Colors.grey),
                           ),
                         ),
                       ],
@@ -2309,7 +2334,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF0F2F5).withOpacity(0.8),
+                              color: (isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF0F2F5)).withOpacity(0.8),
                               borderRadius: BorderRadius.circular(23),
                             ),
                             child: TextField(
@@ -2319,7 +2344,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                               onTap: () => setState(() => _showEmojiPicker = false),
                               textCapitalization: TextCapitalization.sentences,
                               cursorColor: const Color(0xFF00AEEF),
-                              style: const TextStyle(fontSize: 15, color: Color(0xFF1A1A2E), height: 1.3),
+                              style: TextStyle(fontSize: 15, color: isDark ? Colors.white : const Color(0xFF1A1A2E), height: 1.3),
                               decoration: const InputDecoration(
                                 hintText: 'Type a message...',
                                 hintStyle: TextStyle(color: Color(0xFF9E9E9E), fontSize: 15),
@@ -2356,7 +2381,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                                   )
                                 : null,
                             color: (!hasStagedImages && _messageController.text.isEmpty) || uploading
-                                ? Colors.grey[200] : null,
+                                ? (isDark ? Colors.grey[800] : Colors.grey[200]) : null,
                             shape: BoxShape.circle,
                             boxShadow: (hasStagedImages || _messageController.text.isNotEmpty) && !uploading ? [
                               BoxShadow(
@@ -2368,7 +2393,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
                           child: Icon(
                             Icons.send_rounded,
                             color: (hasStagedImages || _messageController.text.isNotEmpty) && !uploading
-                                ? Colors.white : Colors.grey[400],
+                                ? Colors.white : (isDark ? Colors.grey[600] : Colors.grey[400]),
                             size: 18,
                           ),
                         ),
@@ -2470,11 +2495,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
       },
     ];
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 320,
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey[200]!)),
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        border: Border(top: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!)),
       ),
       child: DefaultTabController(
         length: categories.length,
@@ -2504,8 +2530,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
             Container(
               height: 50,
               decoration: BoxDecoration(
-                color: Colors.grey[50],
-                border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                color: isDark ? const Color(0xFF121212) : Colors.grey[50],
+                border: Border(top: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!)),
               ),
               child: TabBar(
                 indicatorColor: const Color(0xFF00AEEF),
@@ -2532,6 +2558,7 @@ class _InputIconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Stack(
@@ -2541,7 +2568,7 @@ class _InputIconBtn extends StatelessWidget {
             duration: const Duration(milliseconds: 200),
             width: 40, height: 40,
             decoration: BoxDecoration(
-              color: active ? const Color(0xFF00AEEF).withOpacity(0.12) : Colors.grey[100],
+              color: active ? const Color(0xFF00AEEF).withOpacity(0.12) : (isDark ? const Color(0xFF2C2C2E) : Colors.grey[100]),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -2575,7 +2602,8 @@ class _LiquidBackground extends StatelessWidget {
   const _LiquidBackground();
   @override
   Widget build(BuildContext context) {
-    return Container(color: const Color(0xFFF8F9FA));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(color: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA));
   }
 }
 
@@ -2583,9 +2611,10 @@ class _TypingDots extends StatelessWidget {
   const _TypingDots();
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, borderRadius: BorderRadius.circular(20)),
       child: const Text('...', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00AEEF))),
     );
   }

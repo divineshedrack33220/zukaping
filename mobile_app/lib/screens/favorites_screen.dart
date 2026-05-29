@@ -209,7 +209,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
 
   Future<void> _removeFavorite(String userId, int index) async {
     try {
-      await ApiService.toggleFavorite(userId);
+      await ApiService.removeFavorite(userId); // always a removal on this screen
       _showToast('Removed from favorites 💔');
       
       setState(() {
@@ -299,9 +299,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
         leading: _buildLogo(),
@@ -343,15 +341,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
         dotColor = Colors.grey;
     }
     
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: _updateStatus,
       child: Container(
         margin: const EdgeInsets.only(right: 16),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[100],
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -367,10 +366,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
             const SizedBox(width: 8),
             Text(
               status['text']!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.black,
+                color: isDark ? Colors.white : Colors.black,
               ),
             ),
           ],
@@ -380,12 +379,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
   }
 
   Widget _buildSearchBar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF121212) : Colors.white,
         border: Border(
-          bottom: BorderSide(color: Colors.grey[300]!),
+          bottom: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
         ),
       ),
       child: TextField(
@@ -394,7 +394,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
           hintText: '🔍 Search favorites by name...',
           prefixIcon: const Icon(Icons.search, color: Colors.grey),
           filled: true,
-          fillColor: Colors.grey[100],
+          fillColor: isDark ? const Color(0xFF1C1C1E) : Colors.grey[100],
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(25),
             borderSide: BorderSide.none,
@@ -603,11 +603,29 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
   }
 
   Widget _buildFavoriteCard(Map<String, dynamic> user, String targetUserId, int index) {
-    final name = user['name'] ?? 'User';
+    final email = user['email']?.toString() ?? '';
+    final name = () {
+      final n = user['name']?.toString() ?? 'User';
+      if (n == 'User' || n == 'Unknown User' || n.isEmpty) {
+        return email.isNotEmpty ? email : 'User';
+      }
+      return n;
+    }();
     final bio = user['bio'] ?? 'No bio yet';
     final avatar = user['avatar'];
     final distance = _formatDistance(user['distance']);
     final status = user['status'] ?? 'offline';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final photos = (user['photos'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .where((e) => e.isNotEmpty && !e.contains('Portrait_Placeholder.png'))
+            .toList() ?? [];
+
+    String? effectiveAvatar = avatar?.toString() ?? '';
+    if (effectiveAvatar.isEmpty || effectiveAvatar.contains('Portrait_Placeholder.png')) {
+      effectiveAvatar = photos.isNotEmpty ? photos.first : null;
+    }
     
     return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 300 + (index * 50)),
@@ -624,9 +642,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.grey[50],
+          color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[50],
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey[200]!),
+          border: Border.all(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200]!),
         ),
         child: Material(
           color: Colors.transparent,
@@ -637,7 +655,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  _buildAvatar(avatar, name),
+                  _buildAvatar(effectiveAvatar, name),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
@@ -648,10 +666,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                             Flexible(
                               child: Text(
                                 name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.black,
+                                  color: isDark ? Colors.white : Colors.black,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -677,9 +695,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                         const SizedBox(height: 8),
                         Text(
                           bio,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
-                            color: Color(0xFF666666),
+                            color: isDark ? Colors.grey[400] : const Color(0xFF666666),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

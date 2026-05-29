@@ -925,18 +925,17 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: _previousScreen),
+        leading: IconButton(icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black), onPressed: _previousScreen),
         title: _currentScreen > 0 ? Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(8, (index) => Container(
             margin: const EdgeInsets.symmetric(horizontal: 4),
             width: 8, height: 8,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: _currentScreen >= index ? const Color(0xFF00AEEF) : const Color(0xFFDDDDDD)),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: _currentScreen >= index ? const Color(0xFF00AEEF) : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFDDDDDD))),
           )),
         ) : null,
       ),

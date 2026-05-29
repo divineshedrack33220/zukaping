@@ -82,16 +82,20 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
         leading: const AppLogo(),
-        title: const Text('Nearby Users', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+        title: const Text('Nearby Users', style: TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: true,
-        actions: [IconButton(icon: const Icon(Icons.refresh, color: Colors.black), onPressed: _loadUsers)],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh), 
+            onPressed: _loadUsers
+          )
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -110,27 +114,63 @@ class _NearbyScreenState extends State<NearbyScreen> {
                         itemCount: _users.length,
                         itemBuilder: (context, index) {
                           final user = _users[index];
-                          final name = user['name']?.toString() ?? 'User';
+                          final email = user['email']?.toString() ?? '';
+                          final name = () {
+                            final n = user['name']?.toString() ?? 'User';
+                            if (n == 'User' || n == 'Unknown User' || n.isEmpty) {
+                              return email.isNotEmpty ? email : 'User';
+                            }
+                            return n;
+                          }();
+                          
                           final avatar = user['avatar']?.toString() ?? '';
                           final photos = (user['photos'] as List<dynamic>?)?.map((e) => e.toString()).where((e) => e.isNotEmpty && !e.contains('Portrait_Placeholder.png')).toList() ?? [];
                           final hasAvatar = avatar.isNotEmpty && !avatar.contains('Portrait_Placeholder.png');
-                          final effectiveAvatar = hasAvatar ? avatar : (photos.isNotEmpty ? photos.first : null);
+                          
+                          final effectiveAvatar = hasAvatar ? avatar : (photos.isNotEmpty ? photos.first : '');
                           final distance = _formatDistance(user['distance']);
                           final userId = user['id']?.toString() ?? '';
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey[200]!)),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[50], 
+                              borderRadius: BorderRadius.circular(16), 
+                              border: Border.all(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200]!)
+                            ),
                             child: ListTile(
-                              leading: CircleAvatar(
-                                radius: 28,
-                                backgroundImage: effectiveAvatar != null && effectiveAvatar.isNotEmpty ? CachedNetworkImageProvider(effectiveAvatar) : null,
-                                child: effectiveAvatar == null || effectiveAvatar.isEmpty ? Text(name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)) : null,
+                              leading: SizedBox(
+                                width: 56,
+                                height: 56,
+                                child: ClipOval(
+                                  child: effectiveAvatar.isNotEmpty
+                                      ? CachedNetworkImage(
+                                          imageUrl: effectiveAvatar,
+                                          fit: BoxFit.cover,
+                                          placeholder: (context, url) => Container(
+                                            color: Colors.grey[300],
+                                            child: const Center(
+                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                            ),
+                                          ),
+                                          errorWidget: (context, url, error) => _buildPlaceholderAvatar(name),
+                                        )
+                                      : _buildPlaceholderAvatar(name),
+                                ),
                               ),
-                              title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                              title: Text(
+                                name, 
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               subtitle: Text(distance),
                               trailing: IconButton(
-                                icon: Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFF00AEEF), shape: BoxShape.circle), child: const Icon(Icons.chat_bubble_outline, color: Colors.black, size: 20)),
+                                icon: Container(
+                                  width: 40, 
+                                  height: 40, 
+                                  decoration: const BoxDecoration(color: Color(0xFF00AEEF), shape: BoxShape.circle), 
+                                  child: const Icon(Icons.chat_bubble_outline, color: Colors.black, size: 20)
+                                ),
                                 onPressed: () async {
                                   try {
                                     final result = await ApiService.createChat(userId);
@@ -213,5 +253,21 @@ class _NearbyScreenState extends State<NearbyScreen> {
         }
         break;
     }
+  }
+
+  Widget _buildPlaceholderAvatar(String name) {
+    return Container(
+      color: const Color(0xFF00AEEF).withOpacity(0.2),
+      child: Center(
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF00AEEF),
+          ),
+        ),
+      ),
+    );
   }
 }

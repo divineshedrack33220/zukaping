@@ -205,23 +205,24 @@ func GetMyProfile(c *gin.Context) {
 
 	// Return successful response
 	c.JSON(http.StatusOK, gin.H{
-		"id":           user.ID.Hex(),
-		"email":        user.Email,
-		"name":         user.Name,
-		"username":     user.Username,
-		"avatar":       user.Avatar,
-		"status":       user.Status,
-		"bio":          user.Bio,
-		"photos":       user.Photos,
-		"birthDate":    user.BirthDate,
-		"gender":       user.Gender,
-		"interestedIn": user.InterestedIn,
-		"latitude":     user.Latitude,
-		"longitude":    user.Longitude,
-		"createdAt":    user.CreatedAt,
-		"lastSeen":     user.LastSeen,
-		"referralCode": user.ReferralCode,
-		"message":      "Profile fetched successfully",
+		"id":             user.ID.Hex(),
+		"email":          user.Email,
+		"name":           user.Name,
+		"username":       user.Username,
+		"avatar":         user.Avatar,
+		"status":         user.Status,
+		"bio":            user.Bio,
+		"photos":         user.Photos,
+		"birthDate":      user.BirthDate,
+		"gender":         user.Gender,
+		"interestedIn":   user.InterestedIn,
+		"latitude":       user.Latitude,
+		"longitude":      user.Longitude,
+		"createdAt":      user.CreatedAt,
+		"lastSeen":       user.LastSeen,
+		"referralCode":   user.ReferralCode,
+		"profile_images": user.ProfileImages,
+		"message":        "Profile fetched successfully",
 	})
 }
 
@@ -384,19 +385,20 @@ func UpdateMyProfile(c *gin.Context) {
 		updatedUser.InterestedIn = []string{}
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"message":      "Profile updated successfully",
-		"id":           updatedUser.ID.Hex(),
-		"email":        updatedUser.Email,
-		"name":         updatedUser.Name,
-		"username":     updatedUser.Username,
-		"avatar":       updatedUser.Avatar,
-		"status":       updatedUser.Status,
-		"bio":          updatedUser.Bio,
-		"photos":       updatedUser.Photos,
-		"birthDate":    updatedUser.BirthDate,
-		"gender":       updatedUser.Gender,
-		"interestedIn": updatedUser.InterestedIn,
-		"referralCode": updatedUser.ReferralCode,
+		"message":        "Profile updated successfully",
+		"id":             updatedUser.ID.Hex(),
+		"email":          updatedUser.Email,
+		"name":           updatedUser.Name,
+		"username":       updatedUser.Username,
+		"avatar":         updatedUser.Avatar,
+		"status":         updatedUser.Status,
+		"bio":            updatedUser.Bio,
+		"photos":         updatedUser.Photos,
+		"birthDate":      updatedUser.BirthDate,
+		"gender":         updatedUser.Gender,
+		"interestedIn":   updatedUser.InterestedIn,
+		"referralCode":   updatedUser.ReferralCode,
+		"profile_images": updatedUser.ProfileImages,
 	})
 }
 
@@ -637,8 +639,27 @@ func SearchUsers(c *gin.Context) {
 		users = []models.User{}
 	}
 
-	// Sanitize output (don't send passwords, etc.) - handled by the User struct's json tags hopefully
-	c.JSON(http.StatusOK, users)
+	// Sanitize output — return only public fields (no blockedUsers, photos, etc.)
+	type publicUser struct {
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+		Username string `json:"username"`
+		Avatar   string `json:"avatar"`
+		Status   string `json:"status"`
+		Bio      string `json:"bio"`
+	}
+	public := make([]publicUser, len(users))
+	for i, u := range users {
+		public[i] = publicUser{
+			ID:       u.ID.Hex(),
+			Name:     u.Name,
+			Username: u.Username,
+			Avatar:   u.Avatar,
+			Status:   u.Status,
+			Bio:      u.Bio,
+		}
+	}
+	c.JSON(http.StatusOK, public)
 }
 
 // DeleteMyProfile deletes the currently-authenticated user.

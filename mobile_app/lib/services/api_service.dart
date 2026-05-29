@@ -14,9 +14,9 @@ class ApiService {
     
     if (kDebugMode) {
       if (kIsWeb) {
-        return 'http://localhost:10000/api';
+        return 'http://localhost:10005/api';
       } else {
-        return 'http://10.0.2.2:10000/api';
+        return 'http://10.0.2.2:10005/api';
       }
     }
     
@@ -95,6 +95,12 @@ class ApiService {
     try {
       final headers = await getHeaders();
       final response = await http.get(Uri.parse('$baseUrl/me'), headers: headers);
+      if (response.statusCode == 401) {
+        // Token expired or invalid — clear stored token
+        await prefs.remove('token');
+        await prefs.remove('cached_profile');
+        throw Exception('UNAUTHORIZED');
+      }
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await prefs.setString('cached_profile', jsonEncode(data));
@@ -103,6 +109,7 @@ class ApiService {
       throw Exception('Server error: ${response.statusCode}');
     } catch (e) {
       print('⚠️ getProfile offline fallback: $e');
+      if (e.toString().contains('UNAUTHORIZED')) rethrow;
       final cached = prefs.getString('cached_profile');
       if (cached != null) {
         return jsonDecode(cached);
@@ -298,7 +305,8 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> toggleFavorite(String userId) async {
+  /// Add a user to favorites
+  static Future<Map<String, dynamic>> addFavorite(String userId) async {
     final headers = await getHeaders();
     final response = await http.post(
       Uri.parse('$baseUrl/favorite'),
@@ -306,6 +314,25 @@ class ApiService {
       body: jsonEncode({'targetUserId': userId}),
     );
     return jsonDecode(response.body);
+  }
+
+  /// Remove a user from favorites
+  static Future<Map<String, dynamic>> removeFavorite(String userId) async {
+    final headers = await getHeaders();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/favorite?targetUserId=$userId'),
+      headers: headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  /// Toggle favorite — adds if not favorited, removes if already favorited
+  static Future<Map<String, dynamic>> toggleFavorite(String userId, {bool currentlyFavorited = false}) async {
+    if (currentlyFavorited) {
+      return removeFavorite(userId);
+    } else {
+      return addFavorite(userId);
+    }
   }
 
   static Future<List<dynamic>> getNearbyUsers(double lat, double lng) async {
@@ -377,9 +404,6 @@ class ApiService {
       ));
     }
 
-    // A beautiful, realistic Cloudinary image URL for testing/fallback when backend is offline
-    const String cloudinaryFallbackUrl = 'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg';
-
     try {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -388,12 +412,12 @@ class ApiService {
         final data = jsonDecode(response.body);
         return data['url'];
       } else {
-        print('Upload failed with status: ${response.statusCode}. Falling back to Cloudinary style placeholder.');
-        return cloudinaryFallbackUrl;
+        print('Upload failed with status: ${response.statusCode}, body: ${response.body}');
+        throw Exception('Upload failed (${response.statusCode})');
       }
     } catch (e) {
-      print('Error uploading image: $e. Falling back to Cloudinary style placeholder.');
-      return cloudinaryFallbackUrl;
+      print('Error uploading image: $e');
+      rethrow;
     }
   }
 
@@ -543,5 +567,116 @@ class ApiService {
     }
 
     return jsonDecode(response.body);
+  }
+
+  // --- Exclusive Content & Pay-to-Unlock API Methods ---
+
+  static Future<Map<String, dynamic>> uploadProfileImage(dynamic fileOrBytes, String filename) async {
+    final token = await getToken();
+    final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/users/me/images'));
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+
+    if ((fileOrBytes is XFile || fileOrBytes is io.File) && !kIsWeb) {
+      request.files.add(await http.MultipartFile.fromPath(
+        'photo',
+        fileOrBytes.path,
+      ));
+    } else {
+      Uint8List bytes;
+      if (fileOrBytes is XFile) {
+        bytes = await fileOrBytes.readAsBytes();
+      } else if (fileOrBytes is io.File) {
+        bytes = await fileOrBytes.readAsBytes();
+      } else {
+        bytes = fileOrBytes as Uint8List;
+      }
+      request.files.add(http.MultipartFile.fromBytes(
+        'photo',
+        bytes,
+        filename: filename,
+      ));
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Failed to upload profile image: ${response.statusCode}');
+  }
+
+  static Future<Map<String, dynamic>> updateProfileImage(
+    String imageId, {
+    required bool isExclusive,
+    required double price,
+    String currency = 'NGN',
+  }) async {
+    final headers = await getHeaders();
+    final response = await http.patch(
+      Uri.parse('$baseUrl/users/me/images/$imageId'),
+      headers: headers,
+      body: jsonEncode({
+        'is_exclusive': isExclusive,
+        'price': price,
+        'currency': currency,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Failed to update image exclusivity: ${response.statusCode}');
+  }
+
+  static Future<Map<String, dynamic>> deleteProfileImage(String imageId) async {
+    final headers = await getHeaders();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/users/me/images/$imageId'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Failed to delete image: ${response.statusCode}');
+  }
+
+  static Future<Map<String, dynamic>> getUserProfile(String userId) async {
+    final headers = await getHeaders();
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId/profile'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Failed to load profile: ${response.statusCode}');
+  }
+
+  static Future<Map<String, dynamic>> unlockContent(String imageId) async {
+    final headers = await getHeaders();
+    final response = await http.post(
+      Uri.parse('$baseUrl/content/$imageId/unlock'),
+      headers: headers,
+      body: jsonEncode({}),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Failed to unlock content: ${response.statusCode}');
+  }
+
+  static Future<bool> checkUnlockStatus(String imageId) async {
+    final headers = await getHeaders();
+    final response = await http.get(
+      Uri.parse('$baseUrl/content/$imageId/status'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['unlocked'] ?? false;
+    }
+    return false;
   }
 }

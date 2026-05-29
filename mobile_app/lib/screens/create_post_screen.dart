@@ -139,19 +139,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Post Request',
           style: TextStyle(
-            color: Colors.black,
+            color: isDark ? Colors.white : Colors.black,
             fontWeight: FontWeight.w600,
             fontSize: 18,
           ),
@@ -178,10 +177,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF00AEEF) : Colors.grey[100],
+                      color: isSelected ? const Color(0xFF00AEEF) : (isDark ? const Color(0xFF1C1C1E) : Colors.grey[100]),
                       borderRadius: BorderRadius.circular(26),
                       border: Border.all(
-                        color: isSelected ? const Color(0xFF00AEEF) : Colors.grey[300]!,
+                        color: isSelected ? const Color(0xFF00AEEF) : (isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
                       ),
                     ),
                     child: Text(
@@ -189,7 +188,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.black : Colors.black87,
+                        color: isSelected ? Colors.black : (isDark ? Colors.white70 : Colors.black87),
                       ),
                     ),
                   ),
@@ -204,12 +203,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[50],
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: _contentController.text.isNotEmpty
                       ? const Color(0xFF00AEEF)
-                      : Colors.grey[300]!,
+                      : (isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
                 ),
               ),
               child: Stack(
@@ -225,7 +224,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       contentPadding: EdgeInsets.all(16),
                       counterText: '', // Hide default counter
                     ),
-                    style: const TextStyle(fontSize: 18),
+                    style: TextStyle(fontSize: 18, color: isDark ? Colors.white : Colors.black),
                   ),
                   Positioned(
                     bottom: 12,
@@ -259,10 +258,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF00AEEF) : Colors.grey[100],
+                        color: isSelected ? const Color(0xFF00AEEF) : (isDark ? const Color(0xFF1C1C1E) : Colors.grey[100]),
                         borderRadius: BorderRadius.circular(26),
                         border: Border.all(
-                          color: isSelected ? const Color(0xFF00AEEF) : Colors.grey[300]!,
+                          color: isSelected ? const Color(0xFF00AEEF) : (isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
                         ),
                       ),
                       child: Text(
@@ -270,7 +269,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: isSelected ? Colors.black : Colors.black87,
+                          color: isSelected ? Colors.black : (isDark ? Colors.white70 : Colors.black87),
                         ),
                       ),
                     ),
@@ -339,10 +338,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Colors.grey[50],
+                        color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[50],
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.grey[300]!,
+                          color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!,
                           style: BorderStyle.solid,
                         ),
                       ),
@@ -396,12 +395,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 16),
 
             // Note
-            const Center(
+            Center(
               child: Text(
                 'Your request will be visible to nearby users immediately.',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF666666),
+                  color: isDark ? Colors.grey[400] : const Color(0xFF666666),
                   height: 1.4,
                 ),
                 textAlign: TextAlign.center,
@@ -416,12 +415,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Widget _buildSectionTitle(String title) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
-        color: Color(0xFF666666),
+        color: isDark ? Colors.grey[400] : const Color(0xFF666666),
       ),
     );
   }

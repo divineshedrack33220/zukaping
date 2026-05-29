@@ -205,6 +205,21 @@ func (m *Manager) BroadcastMessageReaction(payload map[string]interface{}) {
     m.broadcast <- msg
 }
 
+func (m *Manager) BroadcastRoomUpdate(payload map[string]interface{}) {
+    data := map[string]interface{}{
+        "type":    "room_update",
+        "payload": payload,
+    }
+    
+    msg, err := json.Marshal(data)
+    if err != nil {
+        log.Printf("❌ Error marshaling WebSocket room update: %v", err)
+        return
+    }
+    
+    m.broadcast <- msg
+}
+
 func (m *Manager) GetConnectedUsers() int {
     m.mu.RLock()
     defer m.mu.RUnlock()

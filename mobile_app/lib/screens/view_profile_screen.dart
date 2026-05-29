@@ -1,9 +1,11 @@
 import "dart:convert";
+import "dart:ui" as ui;
 import "package:http/http.dart" as http;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/api_service.dart';
 import '../services/sound_service.dart';
+import '../models/profile_image.dart';
 
 class ViewProfileScreen extends StatefulWidget {
   final String userId;
@@ -21,6 +23,7 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
   String? _error;
   int _currentPhotoIndex = 0;
   final PageController _pageController = PageController();
+  List<ProfileImage> _profileImages = [];
 
   @override
   void initState() {
@@ -39,26 +42,17 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.getProfile(); // This gets current user
-      // For viewing another user, you might need a different endpoint
-      // Assuming you have a /api/user/:id endpoint
-      final token = await ApiService.getToken();
-      final http.Response res = await http.get(
-        Uri.parse('${ApiService.baseUrl}/user/${widget.userId}'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        if (mounted) {
-          setState(() {
-            _userData = data;
-            _isLoading = false;
-            _error = null;
-          });
-        }
-      } else {
-        throw Exception('Failed to load profile');
+      final data = await ApiService.getUserProfile(widget.userId);
+      if (mounted) {
+        setState(() {
+          _userData = data;
+          _profileImages = (data['profile_images'] as List<dynamic>?)
+                  ?.map((e) => ProfileImage.fromJson(e as Map<String, dynamic>))
+                  .toList() ??
+              [];
+          _isLoading = false;
+          _error = null;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -70,6 +64,7 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
             'status': 'offline',
             'bio': 'This profile is no longer available or has been deleted.',
           };
+          _profileImages = [];
         });
       }
     }
@@ -80,7 +75,11 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
       final favorites = await ApiService.getFavorites();
       if (mounted) {
         setState(() {
-          _isFavorited = favorites.any((f) => f['targetUserId'] == widget.userId);
+          // API may return 'targetUserId' or 'userId' depending on endpoint version
+          _isFavorited = favorites.any((f) =>
+              f['targetUserId'] == widget.userId ||
+              f['userId'] == widget.userId ||
+              f['id'] == widget.userId);
         });
       }
     } catch (e) {
@@ -90,7 +89,7 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
 
   Future<void> _toggleFavorite() async {
     try {
-      await ApiService.toggleFavorite(widget.userId);
+      await ApiService.toggleFavorite(widget.userId, currentlyFavorited: _isFavorited);
       if (mounted) {
         setState(() => _isFavorited = !_isFavorited);
         if (_isFavorited) {
@@ -191,13 +190,12 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         title: null,
@@ -315,7 +313,8 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
       );
     }
 
-    final photos = _getPhotos();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveImages = _getEffectiveImages();
     final name = _userData!['name'] ?? 'Unknown User';
     final age = _userData!['age'];
     final bio = _userData!['bio'] ?? '';
@@ -332,69 +331,141 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
       child: Column(
         children: [
           // Photo Carousel
-          if (photos.isNotEmpty)
-            GestureDetector(
-              onTap: _openLightbox,
-              child: Column(
-                children: [
-                  Container(
-                    height: 380,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: PageView.builder(
-                        controller: _pageController,
-                        onPageChanged: (index) {
-                          setState(() => _currentPhotoIndex = index);
-                        },
-                        itemCount: photos.length,
-                        itemBuilder: (context, index) {
-                          return CachedNetworkImage(
-                            imageUrl: photos[index],
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: Colors.grey[300],
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.person, size: 80, color: Colors.grey),
-                            ),
-                          );
-                        },
-                      ),
+          if (effectiveImages.isNotEmpty)
+            Column(
+              children: [
+                Container(
+                  height: 380,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: PageView.builder(
+                      controller: _pageController,
+                      onPageChanged: (index) {
+                        setState(() => _currentPhotoIndex = index);
+                      },
+                      itemCount: effectiveImages.length,
+                      itemBuilder: (context, index) {
+                        final img = effectiveImages[index];
+                        final isLocked = img.isExclusive && !img.isUnlocked;
+
+                        return GestureDetector(
+                          onTap: () => _onPhotoTap(img),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              if (isLocked)
+                                ImageFiltered(
+                                  imageFilter: ui.ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                                  child: CachedNetworkImage(
+                                    imageUrl: img.url,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(
+                                      color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[200],
+                                    ),
+                                    errorWidget: (context, url, error) => Container(
+                                      color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300],
+                                      child: const Icon(Icons.person, size: 80, color: Colors.grey),
+                                    ),
+                                  ),
+                                )
+                              else
+                                CachedNetworkImage(
+                                  imageUrl: img.url,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Container(
+                                    color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[200],
+                                  ),
+                                  errorWidget: (context, url, error) => Container(
+                                    color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300],
+                                    child: const Icon(Icons.person, size: 80, color: Colors.grey),
+                                  ),
+                                ),
+                              if (isLocked) ...[
+                                Container(
+                                  color: Colors.black.withValues(alpha: 0.35),
+                                ),
+                                Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.white24, width: 1.5),
+                                        ),
+                                        child: const Icon(
+                                          Icons.lock_rounded,
+                                          color: Colors.white,
+                                          size: 36,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.deepOrange,
+                                          borderRadius: BorderRadius.circular(20),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.3),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: const Text(
+                                          '🔒 Exclusive Content',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ),
-                  if (photos.length > 1) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        photos.length,
-                        (index) => Container(
-                          width: 8,
-                          height: 8,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: index == _currentPhotoIndex
-                                ? const Color(0xFF00AEEF)
-                                : Colors.grey[300],
-                          ),
+                ),
+                if (effectiveImages.length > 1) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      effectiveImages.length,
+                      (index) => Container(
+                        width: 8,
+                        height: 8,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: index == _currentPhotoIndex
+                              ? const Color(0xFF00AEEF)
+                              : (isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]),
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ],
-              ),
+              ],
             )
           else
             Container(
               height: 380,
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[200],
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Center(
@@ -407,10 +478,10 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
           // Name & Age
           Text(
             '$name${age != null ? ', $age' : ''}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w700,
-              color: Colors.black,
+              color: isDark ? Colors.white : Colors.black,
             ),
             textAlign: TextAlign.center,
           ),
@@ -419,9 +490,9 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
             const SizedBox(height: 8),
             Text(
               bio,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF666666),
+                color: isDark ? Colors.grey[400] : const Color(0xFF666666),
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
@@ -437,9 +508,9 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
               if (distance != null)
                 Text(
                   _formatDistance(distance),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    color: Color(0xFF666666),
+                    color: isDark ? Colors.grey[400] : const Color(0xFF666666),
                   ),
                 ),
               if (distance != null) const SizedBox(width: 16),
@@ -464,9 +535,9 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
                         : status == 'busy'
                             ? 'Busy'
                             : 'Offline',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF666666),
+                      color: isDark ? Colors.grey[400] : const Color(0xFF666666),
                     ),
                   ),
                 ],
@@ -484,9 +555,9 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
                 const SizedBox(width: 8),
                 Text(
                   '$rating',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
-                    color: Colors.black,
+                    color: isDark ? Colors.white : Colors.black,
                   ),
                 ),
                 if (verified) ...[
@@ -567,6 +638,146 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
 
           const SizedBox(height: 32),
 
+          // Photos Grid Title & Grid
+          if (effectiveImages.isNotEmpty) ...[
+            const SizedBox(height: 32),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Photos',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemCount: effectiveImages.length,
+              itemBuilder: (context, index) {
+                final img = effectiveImages[index];
+                final isLocked = img.isExclusive && !img.isUnlocked;
+
+                return GestureDetector(
+                  onTap: () => _onPhotoTap(img),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (isLocked)
+                          ImageFiltered(
+                            imageFilter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                            child: CachedNetworkImage(
+                              imageUrl: img.url,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[100],
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey[200],
+                                child: const Icon(Icons.broken_image, color: Colors.grey),
+                              ),
+                            ),
+                          )
+                        else
+                          CachedNetworkImage(
+                            imageUrl: img.url,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey[100],
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.broken_image, color: Colors.grey),
+                            ),
+                          ),
+                        if (isLocked) ...[
+                          Container(
+                            color: Colors.black.withValues(alpha: 0.2),
+                          ),
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.lock_rounded,
+                                color: Colors.deepOrange,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 8,
+                            left: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black87,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '🔒 Exclusive (₦${img.price.toStringAsFixed(0)})',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ] else ...[
+                          Positioned(
+                            bottom: 8,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                '🔓 Public',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+
+          const SizedBox(height: 32),
+
           // Additional Info
           if (lastActive != null || (interests != null && interests.isNotEmpty))
             Column(
@@ -595,6 +806,188 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
       ),
     );
   }
+
+  List<ProfileImage> _getEffectiveImages() {
+    if (_profileImages.isNotEmpty) {
+      return _profileImages;
+    }
+    final photos = _getPhotos();
+    return photos.map((url) => ProfileImage(
+      id: url,
+      url: url,
+      thumbnailUrl: url,
+      isExclusive: false,
+      price: 0,
+      currency: 'NGN',
+      isUnlocked: true,
+      createdAt: DateTime.now(),
+    )).toList();
+  }
+
+  void _onPhotoTap(ProfileImage img) {
+    if (img.isExclusive && !img.isUnlocked) {
+      _showPayToUnlockBottomSheet(img);
+    } else {
+      final effectiveImages = _getEffectiveImages();
+      final browseableImages = effectiveImages.where((e) => !e.isExclusive || e.isUnlocked).toList();
+      final idx = browseableImages.indexWhere((item) => item.id == img.id);
+      if (idx != -1) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => _PhotoLightbox(
+              photos: browseableImages.map((e) => e.url).toList(),
+              initialIndex: idx,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showPayToUnlockBottomSheet(ProfileImage img) {
+    final creatorName = _userData!['name'] ?? 'Creator';
+    final creatorUsername = _userData!['username'] ?? creatorName.toLowerCase().replaceAll(' ', '');
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[350],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  width: 140,
+                  height: 140,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ImageFiltered(
+                        imageFilter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                        child: CachedNetworkImage(
+                          imageUrl: img.url,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey[200],
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.person, size: 40, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        color: Colors.black12,
+                      ),
+                      const Center(
+                        child: Icon(
+                          Icons.lock_rounded,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                '🔒 Exclusive Content',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Unlock this premium photo by @$creatorUsername',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    try {
+                      final result = await ApiService.unlockContent(img.id);
+                      _showToast("Payment coming soon! Content unlocked instantly for testing.");
+                      _loadProfile();
+                    } catch (e) {
+                      _showToast("Failed to unlock content: $e");
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(27),
+                    ),
+                  ),
+                  child: Text(
+                    'Unlock for ₦${img.price.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'By unlocking, you agree to our Terms of Service. Purchases are final and directly support the creator.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[400],
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 // Fullscreen Lightbox for photos
@@ -610,7 +1003,7 @@ class _PhotoLightbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
           PageView.builder(
@@ -642,11 +1035,11 @@ class _PhotoLightbox extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: Colors.black.withOpacity(0.5),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey[300]!),
+                  border: Border.all(color: Colors.white24),
                 ),
-                child: const Icon(Icons.close, color: Colors.black),
+                child: const Icon(Icons.close, color: Colors.white),
               ),
             ),
           ),

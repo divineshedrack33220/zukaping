@@ -79,6 +79,9 @@ func main() {
 
 		// Start background DB cleanup worker for old posts (older than 50 days)
 		go startPostCleanupWorker()
+
+		// Start background room inactivity cleanup worker (7 days inactivity auto-leave)
+		handlers.StartAutoLeaveWorker()
 	} else {
 		log.Println("⚠️ Running WITHOUT MongoDB (degraded mode)")
 	}

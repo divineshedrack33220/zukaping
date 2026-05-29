@@ -499,7 +499,8 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
 
   Future<void> _handleFavorite(Post post, int index) async {
     try {
-      await ApiService.toggleFavorite(post.userId);
+      final isCurrentlyFavorited = _favoriteUserIds.contains(post.userId);
+      await ApiService.toggleFavorite(post.userId, currentlyFavorited: isCurrentlyFavorited);
       
       if (_favoriteUserIds.contains(post.userId)) {
         _favoriteUserIds.remove(post.userId);
@@ -599,10 +600,9 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
         leading: _buildLogo(),
@@ -650,6 +650,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildStatusIndicator() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final status = _statuses[_currentStatusIndex];
     Color dotColor;
     switch (status['class']) {
@@ -675,9 +676,9 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
         margin: const EdgeInsets.only(right: 16),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[100],
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -693,10 +694,10 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
             const SizedBox(width: 8),
             Text(
               status['text']!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.black,
+                color: isDark ? Colors.white : Colors.black,
               ),
             ),
           ],
@@ -706,6 +707,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildStoryBar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     // Show nearby users (excluding self) to keep it rich and colorful
     final displayUsers = _nearbyUsers
         .where((u) => u.userId != _currentUserId)
@@ -718,8 +720,8 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
       height: 130,
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200]!)),
       ),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -790,9 +792,9 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                         child: Container(
                           width: 60,
                           height: 60,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white,
+                            color: isDark ? const Color(0xFF121212) : Colors.white,
                           ),
                           child: ClipOval(
                             child: (user.userAvatar != null && user.userAvatar!.isNotEmpty)
@@ -822,8 +824,8 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                         bottom: 0,
                         child: Container(
                           padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF121212) : Colors.white,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(statusIcon, size: 12, color: statusIconColor),
@@ -834,12 +836,12 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                   const SizedBox(height: 4),
                   Text(
                     user.userName.split(' ')[0],
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? Colors.white : Colors.black),
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     _formatDistance(user.distance),
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 10, color: isDark ? Colors.grey[400] : Colors.grey[600]),
                   ),
                 ],
               ),
@@ -934,12 +936,17 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildShimmerLoading() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark ? const Color(0xFF2C2C2E) : Colors.grey[200]!;
+    final highlightColor = isDark ? const Color(0xFF1C1C1E) : Colors.grey[100]!;
+    final boxColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+
     return Column(
       children: [
         // Story Bar Shimmer
         Shimmer.fromColors(
-          baseColor: Colors.grey[200]!,
-          highlightColor: Colors.grey[100]!,
+          baseColor: baseColor,
+          highlightColor: highlightColor,
           child: Container(
             height: 130,
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -951,9 +958,9 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                 margin: const EdgeInsets.only(right: 12),
                 child: Column(
                   children: [
-                    Container(width: 66, height: 66, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                    Container(width: 66, height: 66, decoration: BoxDecoration(color: boxColor, shape: BoxShape.circle)),
                     const SizedBox(height: 8),
-                    Container(width: 40, height: 10, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                    Container(width: 40, height: 10, decoration: BoxDecoration(color: boxColor, borderRadius: BorderRadius.circular(4))),
                   ],
                 ),
               ),
@@ -967,44 +974,44 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
             itemCount: 3,
             itemBuilder: (context, index) {
               return Shimmer.fromColors(
-                baseColor: Colors.grey[200]!,
-                highlightColor: Colors.grey[100]!,
+                baseColor: baseColor,
+                highlightColor: highlightColor,
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: boxColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey[100]!),
+                    border: Border.all(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[100]!),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Container(width: 64, height: 64, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                          Container(width: 64, height: 64, decoration: BoxDecoration(color: boxColor, shape: BoxShape.circle)),
                           const SizedBox(width: 16),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(width: 120, height: 16, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                              Container(width: 120, height: 16, decoration: BoxDecoration(color: boxColor, borderRadius: BorderRadius.circular(4))),
                               const SizedBox(height: 8),
-                              Container(width: 60, height: 12, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                              Container(width: 60, height: 12, decoration: BoxDecoration(color: boxColor, borderRadius: BorderRadius.circular(4))),
                             ],
                           ),
                         ],
                       ),
                       const SizedBox(height: 20),
-                      Container(width: double.infinity, height: 14, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                      Container(width: double.infinity, height: 14, decoration: BoxDecoration(color: boxColor, borderRadius: BorderRadius.circular(4))),
                       const SizedBox(height: 8),
-                      Container(width: double.infinity, height: 14, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                      Container(width: double.infinity, height: 14, decoration: BoxDecoration(color: boxColor, borderRadius: BorderRadius.circular(4))),
                       const SizedBox(height: 8),
-                      Container(width: 150, height: 14, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                      Container(width: 150, height: 14, decoration: BoxDecoration(color: boxColor, borderRadius: BorderRadius.circular(4))),
                       const SizedBox(height: 16),
                       Container(
                         width: double.infinity,
                         height: 180,
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: boxColor, borderRadius: BorderRadius.circular(12)),
                       ),
                     ],
                   ),
@@ -1018,6 +1025,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildPostCard(Post post, int index) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isFavorited = _favoriteUserIds.contains(post.userId);
     
     return TweenAnimationBuilder<double>(
@@ -1035,10 +1043,10 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: post.userStatus == 'super' ? const Color(0xFFF0F7FF) : Colors.grey[50],
+          color: post.userStatus == 'super' ? (isDark ? const Color(0xFF1C2C3E) : const Color(0xFFF0F7FF)) : (isDark ? const Color(0xFF1C1C1E) : Colors.grey[50]),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: post.userStatus == 'super' ? const Color(0xFF00AEEF).withOpacity(0.3) : Colors.grey[200]!,
+            color: post.userStatus == 'super' ? const Color(0xFF00AEEF).withOpacity(0.3) : (isDark ? const Color(0xFF2C2C2E) : Colors.grey[200]!),
             width: post.userStatus == 'super' ? 2 : 1,
           ),
           boxShadow: [
@@ -1097,18 +1105,18 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                           children: [
                             Text(
                               post.userName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black,
+                                color: isDark ? Colors.white : Colors.black,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               _formatDistance(post.distance),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: Color(0xFF666666),
+                                color: isDark ? Colors.grey[400] : const Color(0xFF666666),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -1131,12 +1139,12 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
+                        color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200],
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
                         post.category!,
-                        style: const TextStyle(fontSize: 14, color: Colors.black),
+                        style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black),
                       ),
                     ),
                   ],
@@ -1145,9 +1153,9 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                   const SizedBox(height: 12),
                   Text(
                     post.content.replaceAll(RegExp(r'\s*\(Duration:\s*\d+\s*mins?\)\s*'), '').trim(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF333333),
+                      color: isDark ? Colors.grey[300] : const Color(0xFF333333),
                       height: 1.4,
                     ),
                   ),
@@ -1163,7 +1171,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                           const SizedBox(width: 8),
                           Text(
                             _formatTime(post.createdAt),
-                            style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
+                            style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : const Color(0xFF666666)),
                           ),
                         ],
                       ),
@@ -1297,9 +1305,10 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildBroadcastOverlay() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Positioned.fill(
       child: Container(
-        color: Colors.white.withOpacity(0.98),
+        color: (isDark ? const Color(0xFF121212) : Colors.white).withOpacity(0.98),
         child: Stack(
           children: [
             // Close button
@@ -1317,11 +1326,11 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[100],
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.grey[300]!),
+                    border: Border.all(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
                   ),
-                  child: const Icon(Icons.close, color: Color(0xFF333333)),
+                  child: Icon(Icons.close, color: isDark ? Colors.white : const Color(0xFF333333)),
                 ),
               ),
             ),
@@ -1364,19 +1373,19 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                   
                   Text(
                     _broadcastText,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     _broadcastSubtext,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF666666),
+                      color: isDark ? Colors.grey[400] : const Color(0xFF666666),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -1408,7 +1417,7 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
+                              color: isDark ? Colors.grey[300] : Colors.grey[700],
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -1430,13 +1439,14 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildBroadcastResultItem(Post user) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200]!),
       ),
       child: Row(
         children: [
@@ -1467,12 +1477,12 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
               children: [
                 Text(
                   user.userName,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   _formatDistance(user.distance),
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
+                  style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : const Color(0xFF666666)),
                 ),
               ],
             ),
@@ -1496,10 +1506,10 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200],
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.chat_bubble_outline, size: 18, color: Color(0xFF333333)),
+                  child: Icon(Icons.chat_bubble_outline, size: 18, color: isDark ? Colors.white : const Color(0xFF333333)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1511,10 +1521,10 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200],
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.visibility, size: 18, color: Color(0xFF333333)),
+                  child: Icon(Icons.visibility, size: 18, color: isDark ? Colors.white : const Color(0xFF333333)),
                 ),
               ),
             ],

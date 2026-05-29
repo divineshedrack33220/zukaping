@@ -105,12 +105,45 @@ class Chat {
     
     final bool isGroup = json['isGroup'] == true;
 
+    // Resolve name fallback using email if name is unknown
+    final partnerEmail = partner['email']?.toString() ?? '';
+    String partnerName = '';
+    if (isGroup) {
+      partnerName = json['groupName']?.toString() ?? 'Group Chat';
+    } else {
+      final nameRaw = partner['name']?.toString() ?? '';
+      if (nameRaw.isEmpty || nameRaw == 'Unknown User' || nameRaw == 'User') {
+        partnerName = partnerEmail.isNotEmpty ? partnerEmail : 'User';
+      } else {
+        partnerName = nameRaw;
+      }
+    }
+
+    String? avatar = isGroup ? json['groupAvatar']?.toString() : partner['avatar']?.toString();
+    if (avatar != null && (avatar.isEmpty || avatar.contains('Portrait_Placeholder.png'))) {
+      avatar = null;
+    }
+    List<String> photos = (partner['photos'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .where((e) => e.isNotEmpty && !e.contains('Portrait_Placeholder.png'))
+            .toList() ?? [];
+
+    if (avatar == null) {
+      if (isGroup) {
+        avatar = "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&h=600&q=80";
+      } else {
+        if (photos.isNotEmpty) {
+          avatar = photos.first;
+        }
+      }
+    }
+
     return Chat(
       id: json['id']?.toString() ?? '',
       partnerId: partner['id']?.toString() ?? '',
-      partnerName: isGroup ? (json['groupName']?.toString() ?? 'Group Chat') : (partner['name']?.toString() ?? 'User'),
-      partnerAvatar: isGroup ? json['groupAvatar']?.toString() : partner['avatar']?.toString(),
-      partnerPhotos: (partner['photos'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      partnerName: partnerName,
+      partnerAvatar: avatar,
+      partnerPhotos: photos,
       lastMessage: msgContent,
       lastMessageType: _detectMessageType(lastMsg),
       lastMessageTime: parseTime(json['lastMessageAt']),

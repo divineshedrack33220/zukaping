@@ -177,8 +177,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -207,11 +207,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
+                          style: TextStyle(color: isDark ? Colors.white : Colors.black),
                           decoration: InputDecoration(
                             hintText: 'Email address',
+                            hintStyle: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey),
                             filled: true,
-                            fillColor: const Color(0xFFF5F5F5),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            fillColor: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF5F5F5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -220,11 +229,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
+                          style: TextStyle(color: isDark ? Colors.white : Colors.black),
                           decoration: InputDecoration(
                             hintText: 'Password',
+                            hintStyle: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey),
                             filled: true,
-                            fillColor: const Color(0xFFF5F5F5),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            fillColor: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF5F5F5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
+                            ),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -266,12 +284,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 16),
                         Row(
                           children: [
-                            Expanded(child: Divider(color: Colors.grey[300])),
+                            Expanded(child: Divider(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300])),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Text('or', style: TextStyle(color: Colors.grey[600])),
+                              child: Text('or', style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600])),
                             ),
-                            Expanded(child: Divider(color: Colors.grey[300])),
+                            Expanded(child: Divider(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300])),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -283,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: OutlinedButton(
                             onPressed: _isLoading ? null : _handleGoogleSignIn,
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFFE0E0E0)),
+                              side: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE0E0E0)),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
                             ),
                             child: Row(
@@ -295,9 +313,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   height: 20,
                                 ),
                                 const SizedBox(width: 12),
-                                const Text(
+                                Text(
                                   'Continue with Google',
-                                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black),
+                                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black),
                                 ),
                               ],
                             ),
@@ -330,9 +348,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showGoogleFallbackOption(String originalError) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -347,18 +366,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.amber[50],
+                    color: Colors.amber.withOpacity(0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.warning_amber_rounded, color: Colors.amber[800], size: 28),
                 ),
                 const SizedBox(width: 16),
-                const Text(
+                Text(
                   'Google Auth Failed',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: isDark ? Colors.white : Colors.black,
                   ),
                 ),
               ],
@@ -368,7 +387,7 @@ class _LoginScreenState extends State<LoginScreen> {
               'Google authentication failed or is not configured for this environment.\n\nError: $originalError',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[700],
+                color: isDark ? Colors.grey[400] : Colors.grey[700],
                 height: 1.5,
               ),
             ),
@@ -380,10 +399,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: Colors.grey[300]!),
+                      side: BorderSide(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300]!),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
-                    child: const Text('Cancel', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+                    child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(width: 12),

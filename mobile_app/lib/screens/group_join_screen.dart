@@ -99,14 +99,13 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text('Group Invitation'),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        foregroundColor: isDark ? Colors.white : Colors.black,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -117,6 +116,7 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
   }
 
   Widget _buildErrorWidget() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -133,7 +133,7 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
             Text(
               _errorMessage ?? 'This invite code is expired or invalid. Please check the URL and try again.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 14),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -152,6 +152,7 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
   }
 
   Widget _buildGroupDetailsWidget(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
     final name = _groupInfo?['groupName']?.toString() ?? 'Group Chat';
     final avatar = _groupInfo?['groupAvatar']?.toString();
     final description = _groupInfo?['groupDescription']?.toString() ?? 'No description provided.';
@@ -165,11 +166,11 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
           constraints: const BoxConstraints(maxWidth: 450),
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -225,11 +226,11 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.people_alt_rounded, size: 16, color: Colors.grey[600]),
+                  Icon(Icons.people_alt_rounded, size: 16, color: isDark ? Colors.grey[400] : Colors.grey[600]),
                   const SizedBox(width: 6),
                   Text(
                     '$memberCount members',
-                    style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600, fontSize: 14),
+                    style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                 ],
               ),
@@ -250,7 +251,7 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
               Text(
                 description,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600], fontSize: 15, height: 1.4),
+                style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 15, height: 1.4),
               ),
               const SizedBox(height: 32),
 

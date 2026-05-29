@@ -129,7 +129,7 @@ func Signup(c *gin.Context) {
 	fmt.Printf("✅ User created: %s (ID: %s)\n", req.Email, user.ID.Hex())
 
 	// Generate JWT token
-	expirationTime := time.Now().Add(24 * time.Hour)
+	expirationTime := time.Now().Add(7 * 24 * time.Hour)
 	claims := &middleware.Claims{
 		UserID: user.ID.Hex(),
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -238,7 +238,7 @@ func Login(c *gin.Context) {
 	})
 
 	// Generate JWT token
-	expirationTime := time.Now().Add(24 * time.Hour)
+	expirationTime := time.Now().Add(7 * 24 * time.Hour)
 	claims := &middleware.Claims{
 		UserID: user.ID.Hex(),
 		RegisteredClaims: jwt.RegisteredClaims{
