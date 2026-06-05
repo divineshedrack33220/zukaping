@@ -11,6 +11,7 @@ import '../services/websocket_service.dart';
 import '../services/sound_service.dart';
 import '../models/post.dart';
 import '../widgets/app_logo.dart';
+import '../utils/helpers.dart';
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
 
@@ -94,11 +95,8 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     }
 
     try {
-      final parts = token.split('.');
-      if (parts.length == 3) {
-        final payload = json.decode(
-          utf8.decode(base64.decode(base64.normalize(parts[1])))
-        );
+      final payload = parseJwtPayload(token);
+      if (payload != null) {
         _currentUserId = payload['userId'] ?? payload['sub'] ?? payload['id'];
       }
     } catch (e) {

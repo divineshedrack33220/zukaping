@@ -11,6 +11,7 @@ import '../services/sound_service.dart';
 import '../models/message.dart';
 import '../models/room.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/helpers.dart';
 
 class RoomChatScreen extends StatefulWidget {
   final String roomId;
@@ -72,9 +73,8 @@ class _RoomChatScreenState extends State<RoomChatScreen> with WidgetsBindingObse
     WebSocketService.connect();
 
     try {
-      final parts = token.split('.');
-      if (parts.length == 3) {
-        final payload = json.decode(utf8.decode(base64.decode(base64.normalize(parts[1]))));
+      final payload = parseJwtPayload(token);
+      if (payload != null) {
         _currentUserId = payload['userId'] ?? payload['sub'] ?? payload['id'];
       }
     } catch (_) {

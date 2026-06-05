@@ -3,12 +3,12 @@
   # 🍋 Zukaping
   
   **A Modern, Real-Time Social Discovery & Chat Application**
-
+  
   [![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)
   [![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
   [![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
   [![Gin Framework](https://img.shields.io/badge/Gin-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://gin-gonic.com/)
-
+  
   [Features](#sparkles-features) • [Tech Stack](#hammer_and_wrench-tech-stack) • [Getting Started](#rocket-getting-started) • [Architecture](#triangular_ruler-architecture)
 </div>
 
@@ -101,15 +101,278 @@ flutter run -d android
 ## 📐 Architecture
 
 Zukaping uses a scalable, decoupled architecture:
-1. **Client Layer:** Flutter app manages UI state and maintains a persistent WebSocket connection for live events.
-2. **API Layer:** Go/Gin handles stateless HTTP REST requests (Auth, Profile Updates, Feed Generation).
-3. **Real-Time Layer:** A custom Go WebSocket Hub manages client connections, broadcasts messages, and handles presence (online/offline status).
-4. **Data Layer:** MongoDB efficiently stores users, chats, messages, and geospatial index data for fast location-based queries.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           ZUKAPING ARCHITECTURE                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────┐     HTTPS/WSS      ┌──────────────┐     MongoDB      ┌──────────────┐
+│   CLIENT     │ ◄────────────────► │   BACKEND    │ ◄──────────────► │  DATABASE    │
+│  (Flutter)   │   REST + WebSocket │   (Go/Gin)   │   mongo-driver   │  (MongoDB)   │
+└──────────────┘                    └──────────────┘                  └──────────────┘
+       │                                  │                                  │
+       │                                  │                                  │
+       ▼                                  ▼                                  ▼
+┌──────────────────┐            ┌──────────────────┐            ┌──────────────────┐
+│ • State Mgmt     │            │ • API Layer      │            │ • Users          │
+│   (setState/     │            │   - Auth         │            │ • Chats          │
+│   Provider)      │            │   - Profile      │            │ • Messages       │
+│ • SharedPrefs    │            │   - Feed/Posts   │            │ • Posts          │
+│ • Cached Images  │            │   - Favorites    │            │ • Favorites      │
+│ • WebSocket      │            │   - Chats        │            │ • Rooms          │
+│   Service        │            │   - Rooms        │            │ • Purchases      │
+└──────────────────┘            │ • WebSocket Hub  │            │ • Geospatial     │
+                                │   - Presence     │            │   Indexes        │
+                                │   - Broadcast    │            └──────────────────┘
+                                │   - Typing/Read  │
+                                │ • Background     │
+                                │   Workers        │
+                                └──────────────────┘
+```
+
+### 1. Client Layer (Flutter)
+- **State Management:** Local `setState` + `Provider` for theme/notifications
+- **Persistence:** `SharedPreferences` for JWT tokens, user cache, feed/chat/message caches
+- **Networking:** `http` package for REST, `web_socket_channel` for real-time events
+- **Offline-First:** Caches feed, chats, messages, favorites, nearby users for instant loads
+- **UI:** Material 3 + glassmorphism, custom animations, shimmer loading
+
+### 2. API Layer (Go/Gin)
+- **REST Endpoints:** Organized by domain (auth, users, posts, chats, favorites, rooms, exclusive content)
+- **Auth Middleware:** JWT validation (HS256), extracts `userId` into request context
+- **CORS:** Configured for localhost, Render, and custom origins
+- **Rate Limiting:** Optional middleware for abuse prevention
+- **File Upload:** Multipart handling for profile/room images
+
+### 3. Real-Time Layer (WebSocket Hub)
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    WEBSOCKET MANAGER                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │  Register   │  │ Broadcast   │  │ Unregister  │  Channels │
+│  └─────────────┘  └─────────────┘  └─────────────┘           │
+│         │              │              │                        │
+│         ▼              ▼              ▼                        │
+│  ┌─────────────────────────────────────────────┐              │
+│  │            CLIENT REGISTRY                   │              │
+│  │  map[userID] -> *Client (conn, send chan)   │              │
+│  └─────────────────────────────────────────────┘              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Message Types:**
+| Type | Direction | Payload | Purpose |
+|------|-----------|---------|---------|
+| `new_message` | Server→Client | `{chatId, message}` | Instant message delivery |
+| `new_request` | Server→Client | `{post}` | New nearby post notification |
+| `request_update` | Server→Client | `{post}` | Post status changes |
+| `chat_created` | Server→Client | `{chat}` | New 1-on-1/group chat |
+| `message_read` | Server→Client | `{chatId, messageIds, userId}` | Read receipts |
+| `typing_start/end` | Bidirectional | `{chatId, userId}` | Typing indicators |
+| `message_reaction` | Server→Client | `{messageId, reactions}` | Emoji reactions |
+| `user_status_update` | Server→Client | `{userId, status, isOnline}` | Presence |
+| `room_update` | Server→Client | `{roomId, ...}` | Room state changes |
+| `subscribe_chat` | Client→Server | `{chatId}` | Join chat room |
+| `ping/pong` | Bidirectional | `{time}` | Keep-alive |
+
+### 4. Data Layer (MongoDB)
+**Collections & Indexes:**
+```javascript
+// users
+{ email: 1 } unique
+{ username: 1 } unique
+{ location: "2dsphere" }          // Geospatial for nearby queries
+{ status: 1, updatedAt: -1 }      // Status + recency
+{ isOnline: 1, lastSeen: -1 }     // Presence
+
+// chats
+{ participants: 1 }               // User's chats
+{ isGroup: 1, updatedAt: -1 }     // Group listing
+{ "participantsProfiles._id": 1 } // Participant lookup
+
+// messages
+{ chatId: 1, createdAt: -1 }      // Chat history pagination
+{ senderId: 1, createdAt: -1 }    // User's sent messages
+
+// posts
+{ createdAt: -1 }                 // Feed ordering
+{ userId: 1, createdAt: -1 }      // User's posts
+{ location: "2dsphere" }          // Nearby posts
+{ expiresAt: 1 }                  // TTL index for auto-expiry
+
+// favorites
+{ userId: 1, targetUserId: 1 } unique
+{ userId: 1 }                     // User's favorites
+
+// rooms
+{ isActive: 1, createdAt: -1 }    // Active rooms
+{ "members.userId": 1 }           // User's rooms
+
+// purchases
+{ userId: 1, imageId: 1 } unique  // Unlock records
+{ imageId: 1 }                    // Content purchasers
+```
+
+**Background Workers:**
+- **Post Cleanup:** Deletes posts older than 50 days (runs every 12h)
+- **Room Auto-Leave:** Removes inactive members after 7 days (runs periodically)
+
+---
+
+## 📁 Project Structure
+
+```
+lemon16/
+├── backend/
+│   ├── main.go                    # Entry point, DB init, WS hub, server
+│   ├── database/
+│   │   └── database.go            # MongoDB connection & collections
+│   ├── handlers/                  # HTTP request handlers
+│   │   ├── auth.go                # Signup, login, JWT issuance
+│   │   ├── user.go                # Profile, status, nearby, search
+│   │   ├── post.go                # Posts/feed CRUD
+│   │   ├── chat.go                # Chat CRUD, group admin
+│   │   ├── message.go             # Messages, typing, reactions, read
+│   │   ├── favorite.go            # Favorites toggle
+│   │   ├── room.go                # Room discovery, join/leave
+│   │   ├── content.go             # Exclusive images, pay-to-unlock
+│   │   ├── google_auth.go         # Google OAuth flow
+│   │   ├── push.go                # VAPID push subscriptions
+│   │   └── common.go              # Health, test endpoints
+│   ├── middleware/
+│   │   ├── auth.go                # JWT validation middleware
+│   │   └── ratelimit.go           # Rate limiting
+│   ├── models/                    # Data structures
+│   │   ├── user.go, chat.go, message.go, post.go, room.go, ...
+│   ├── routes/
+│   │   └── routes.go              # Gin router, CORS, endpoint mapping
+│   └── websocket/
+│       └── manager.go             # WS hub, client registry, broadcast
+│
+├── mobile_app/
+│   ├── lib/
+│   │   ├── main.dart              # App entry, theme, routing
+│   │   ├── models/                # Dart models (User, Chat, Message, Post, Room)
+│   │   ├── screens/               # UI screens
+│   │   │   ├── feed_screen.dart       # Main feed with story bar, radar
+│   │   │   ├── chat_screen.dart       # 1-on-1/group chat
+│   │   │   ├── room_chat_screen.dart  # Room chat
+│   │   │   ├── profile_screen.dart    # Profile view/edit
+│   │   │   ├── login/signup/onboarding
+│   │   │   └── ...
+│   │   ├── services/
+│   │   │   ├── api_service.dart       # REST client, server failover
+│   │   │   ├── websocket_service.dart # WS connection, reconnection
+│   │   │   ├── notification_service.dart # Local notifications
+│   │   │   ├── theme_service.dart     # Dark/light mode
+│   │   │   └── sound_service.dart     # Message sounds
+│   │   ├── widgets/               # Reusable UI components
+│   │   └── utils/helpers.dart     # JWT decode, base64url utils
+│   └── pubspec.yaml               # Dependencies
+```
+
+---
+
+## 🔐 Authentication Flow
+
+```
+┌─────────────┐     Email/Password      ┌─────────────┐
+│   Client    │ ──────────────────────► │   Backend   │
+└─────────────┘                         └─────────────┘
+                                               │
+                                               ▼
+                                        ┌─────────────┐
+                                        │  Validate   │
+                                        │  + Hash pwd │
+                                        └─────────────┘
+                                               │
+                                               ▼
+                                        ┌─────────────┐
+                                        │  Create JWT │◄── HS256 (JWT_SECRET)
+                                        │  (userId,   │
+                                        │   exp: 7d)  │
+                                        └─────────────┘
+                                               │
+                    JWT Token (Bearer) ◄───────┘
+                                               │
+┌─────────────┐     WS Connect (token)  ┌─────────────┐
+│   Client    │ ──────────────────────► │   Backend   │
+└─────────────┘                         └─────────────┘
+                                               │
+                                               ▼
+                                        ┌─────────────┐
+                                        │  Validate   │
+                                        │  JWT on WS  │
+                                        │  handshake  │
+                                        └─────────────┘
+                                               │
+                                        Register client
+                                        in WS Manager
+```
+
+---
+
+## 🌐 Server Failover Strategy (Client)
+
+```dart
+// ApiService.initActiveUrl() - Called on app startup
+1. Candidate URLs: [local, zukaping.onrender.com, lemon16.onrender.com]
+2. Ping /health with 1.5s timeout
+3. First 200 OK → set as _activeBaseUrl
+4. If none: retry production with 4s timeout
+5. Fallback: local (debug) / first production (release)
+
+// Automatic failover on request failure
+ApiService.switchServer() → toggles to next production URL
+```
+
+---
+
+## 🔔 Push Notifications
+
+- **VAPID Keys:** Generated at startup, public key served via `/api/vapid-public-key`
+- **Subscription:** Client sends endpoint + keys to `/api/subscribe`
+- **Delivery:** Server uses `webpush-go` to send encrypted payloads
+- **Triggers:** New message, new request, mention, group invite
+
+---
+
+## 📦 Deployment
+
+### Backend (Render/Heroku)
+```bash
+# Build
+go build -o server main.go
+
+# Environment Variables
+PORT=8080
+GIN_MODE=release
+MONGODB_URI=mongodb+srv://...
+JWT_SECRET=super-secure-random-string
+ALLOWED_ORIGINS=https://your-frontend.com
+VAPID_PRIVATE_KEY=...
+VAPID_PUBLIC_KEY=...
+```
+
+### Frontend (Vercel/Firebase)
+```bash
+flutter build web --release
+# Deploy build/web/ to Vercel/Firebase
+```
+
+### Android
+```bash
+flutter build apk --release
+# Upload build/app/outputs/flutter-apk/app-release.apk to Play Console
+```
 
 ---
 
 ## 🤝 Contributing
+
 Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/divineshedrack33220/zukaping/issues).
 
 ## 📄 License
+
 This project is licensed under the MIT License.

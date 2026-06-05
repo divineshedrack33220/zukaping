@@ -12,6 +12,7 @@ import '../models/user.dart';
 import '../widgets/app_logo.dart';
 import '../services/sound_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/helpers.dart';
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
 
@@ -64,10 +65,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
     
     // Decode JWT to get userId (simplified)
     try {
-      final parts = token.split('.');
-      if (parts.length == 3) {
-        final payload = _decodeBase64(parts[1]);
-        _currentUserId = "";  // TODO: parse from token
+      final payload = parseJwtPayload(token);
+      if (payload != null) {
+        _currentUserId = payload['userId'] ?? payload['sub'] ?? payload['id'];
       }
     } catch (e) {
       print('Error decoding token: $e');
@@ -77,11 +77,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
       _loadFavorites(),
       _loadUserStatus(),
     ]);
-  }
-
-  String _decodeBase64(String str) {
-    String normalized = base64.normalize(str);
-    return utf8.decode(base64.decode(normalized));
   }
 
   Future<void> _loadFavorites({int attempt = 1}) async {

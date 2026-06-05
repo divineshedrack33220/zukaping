@@ -97,7 +97,7 @@ class ApiService {
       _activeBaseUrl = _productionUrls.first;
     } else {
       // Toggle between the production servers
-      final currentIndex = _productionUrls.indexOf(baseUrl);
+      final currentIndex = _productionUrls.indexOf(_activeBaseUrl ?? baseUrl);
       if (currentIndex == -1 || currentIndex == _productionUrls.length - 1) {
         _activeBaseUrl = _productionUrls.first;
       } else {
