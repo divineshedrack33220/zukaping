@@ -537,26 +537,26 @@ stateDiagram-v2
 ```mermaid
 flowchart TD
     Start[App Startup] --> Init[ApiService.initActiveUrl]
-    Init --> Candidates{Candidates:\n[local, zukaping, lemon16]}
-    Candidates --> Ping[Ping /health\n1.5s timeout]
-    Ping --> Success{200 OK?}
-    Success -->|Yes| Active[Set _activeBaseUrl\nReturn]
-    Success -->|No| Next[Next candidate]
+    Init --> Cand[Candidates: local, zukaping, lemon16]
+    Cand --> Ping[Ping /health 1.5s timeout]
+    Ping --> OK{200 OK?}
+    OK -->|Yes| Active[Set _activeBaseUrl / Return]
+    OK -->|No| Next[Next candidate]
     Next --> Ping
     
     Active --> Runtime[Normal Operation]
     Runtime --> Request[API Request]
     Request --> Fail{Request Failed?}
     Fail -->|No| Runtime
-    Fail -->|Yes| Switch[switchServer()]
-    Switch --> Toggle[Toggle to next\nproduction URL]
+    Fail -->|Yes| Switch[switchServer]
+    Switch --> Toggle[Toggle to next production URL]
     Toggle --> Retry[Retry Request]
     Retry --> Runtime
     
-    Ping -.->|All fail| LongPing[Longer ping\n4s timeout]
-    LongPing --> LongSuccess{200 OK?}
-    LongSuccess -->|Yes| Active
-    LongSuccess -->|No| Default[Default: local/debug\nor first/production]
+    Ping -.->|All fail| LongPing[Longer ping 4s timeout]
+    LongPing --> LongOK{200 OK?}
+    LongOK -->|Yes| Active
+    LongOK -->|No| Default[Default: local/debug or first/production]
     Default --> Active
 ```
 
