@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,6 +10,7 @@ import (
 
 	"coded/database"
 	"coded/handlers"
+	"coded/pkg/logger"
 	"coded/routes"
 	"coded/websocket"
 
@@ -27,39 +27,38 @@ func validateEnv() {
 
 	for _, env := range required {
 		if os.Getenv(env) == "" {
-			log.Printf("⚠️ Missing env: %s", env)
+			logger.Logger.Fatal().Str("env", env).Msg("Required environment variable not set")
+		}
+	}
 
-			switch env {
-			case "JWT_SECRET":
-				if os.Getenv("GIN_MODE") == "release" {
-					log.Fatal("❌ FATAL: JWT_SECRET must be set in release mode!")
-				}
-				os.Setenv("JWT_SECRET", "dev-secret-change-in-prod")
-				log.Println("⚠️ Using insecure default JWT_SECRET (Development only)")
-			case "MONGODB_URI":
-				log.Println("⚠️ No MongoDB URI — app will run WITHOUT database (degraded mode)")
-			}
+	if os.Getenv("GIN_MODE") == "release" {
+		if len(os.Getenv("JWT_SECRET")) < 32 {
+			logger.Logger.Fatal().Msg("JWT_SECRET must be at least 32 characters in production")
 		}
 	}
 }
 
 
 func main() {
-	log.Println("🚀 Starting backend...")
-
 	_ = godotenv.Load()
+
+	debug := os.Getenv("GIN_MODE") != "release"
+	logger.Init("zukaping", debug)
+
+	logger.Logger.Info().Msg("🚀 Starting backend...")
+
 	validateEnv()
 
 	// Initialize VAPID keys for push notifications
 	handlers.InitVAPIDKeys()
 
 	// ---------------- DB CONNECTION (NON-BLOCKING) ----------------
-	log.Println("🔌 Connecting to MongoDB...")
+	logger.Logger.Info().Msg("🔌 Connecting to MongoDB...")
 	var dbConnected bool
 
 	for i := 1; i <= 3; i++ {
 		if err := database.ConnectDB(); err != nil {
-			log.Printf("❌ DB attempt %d failed: %v", i, err)
+			logger.Logger.Error().Err(err).Int("attempt", i).Msg("DB connection failed")
 			time.Sleep(2 * time.Second)
 		} else {
 			dbConnected = true
@@ -68,13 +67,13 @@ func main() {
 	}
 
 	if dbConnected {
-		log.Println("✅ MongoDB connected")
+		logger.Logger.Info().Msg("✅ MongoDB connected")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		if err := database.Client.Ping(ctx, nil); err != nil {
-			log.Println("⚠️ MongoDB ping failed:", err)
+			logger.Logger.Warn().Err(err).Msg("MongoDB ping failed")
 		}
 
 		// Start background DB cleanup worker for old posts (older than 50 days)
@@ -83,7 +82,7 @@ func main() {
 		// Start background room inactivity cleanup worker (7 days inactivity auto-leave)
 		handlers.StartAutoLeaveWorker()
 	} else {
-		log.Println("⚠️ Running WITHOUT MongoDB (degraded mode)")
+		logger.Logger.Warn().Msg("Running WITHOUT MongoDB (degraded mode)")
 	}
 
 	// ---------------- WEBSOCKET ----------------
@@ -102,7 +101,10 @@ func main() {
 	router := routes.SetupRouter()
 
 	// Log DB status for monitoring
-	log.Printf("📊 Database connection status: %v", dbConnected)
+	logger.Logger.Info().Bool("connected", dbConnected).Msg("Database connection status")
+
+	// Add logging middleware
+	router.Use(logger.LoggerMiddleware())
 
 	// WebSocket endpoint
 	router.GET("/ws", func(c *gin.Context) {
@@ -126,39 +128,39 @@ func main() {
 
 	// ---------------- START SERVER ----------------
 	go func() {
-		log.Printf("🌐 Running on port %s", port)
-		log.Printf("📍 API Base URL: http://localhost:%s/api", port)
+		logger.Logger.Info().Str("port", port).Msg("🌐 Running on port")
+		logger.Logger.Info().Str("url", "http://localhost:"+port+"/api").Msg("📍 API Base URL")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("Server crash:", err)
+			logger.Logger.Fatal().Err(err).Msg("Server crash")
 		}
 	}()
 
-	log.Println("✅ Server started successfully")
+	logger.Logger.Info().Msg("✅ Server started successfully")
 
 	// ---------------- GRACEFUL SHUTDOWN ----------------
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	<-quit
-	log.Println("🛑 Shutting down...")
+	logger.Logger.Info().Msg("🛑 Shutting down...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Println("❌ Forced shutdown:", err)
+		logger.Logger.Error().Err(err).Msg("Forced shutdown")
 	}
 
 	if database.Client != nil {
 		_ = database.Client.Disconnect(ctx)
 	}
 
-	log.Println("👋 Server stopped")
+	logger.Logger.Info().Msg("👋 Server stopped")
 }
 
 // startPostCleanupWorker starts a background worker that regularly deletes posts older than 50 days
 func startPostCleanupWorker() {
-	log.Println("🧹 Post cleanup worker initialized (deletes posts older than 50 days)")
+	logger.Logger.Info().Msg("Post cleanup worker initialized (deletes posts older than 50 days)")
 	
 	// Run cleanup once immediately on startup
 	runPostCleanup()
@@ -176,7 +178,7 @@ func runPostCleanup() {
 		return
 	}
 	
-	log.Println("🧹 Running scheduled database cleanup for posts older than 50 days...")
+	logger.Logger.Info().Msg("Running scheduled database cleanup for posts older than 50 days...")
 	
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -192,13 +194,13 @@ func runPostCleanup() {
 	
 	res, err := postsColl.DeleteMany(ctx, filter)
 	if err != nil {
-		log.Printf("❌ Error during post cleanup: %v", err)
+		logger.Logger.Error().Err(err).Msg("Error during post cleanup")
 		return
 	}
 	
 	if res.DeletedCount > 0 {
-		log.Printf("🧹 Success: Deleted %d posts older than 50 days permanently", res.DeletedCount)
+		logger.Logger.Info().Int64("deleted", res.DeletedCount).Msg("Deleted posts older than 50 days")
 	} else {
-		log.Println("🧹 Cleanup complete: No posts older than 50 days found")
+		logger.Logger.Info().Msg("Cleanup complete: No posts older than 50 days found")
 	}
 }

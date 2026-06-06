@@ -1,7 +1,12 @@
 package handlers
 
 import (
+    "context"
+    "time"
+
+    "coded/database"
     "coded/websocket"
+    "github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -27,4 +32,39 @@ type PushSubscription struct {
 // SetWebSocketManager sets the global WebSocket manager
 func SetWebSocketManager(manager *websocket.Manager) {
     wsManager = manager
+}
+
+// ReadinessCheck checks if the service is ready to handle requests
+func ReadinessCheck(c *gin.Context) {
+    ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+    defer cancel()
+
+    // Check database connection
+    if database.Client == nil {
+        c.JSON(503, gin.H{
+            "status": "not ready",
+            "checks": gin.H{
+                "database": "disconnected",
+            },
+        })
+        return
+    }
+
+    if err := database.Client.Ping(ctx, nil); err != nil {
+        c.JSON(503, gin.H{
+            "status": "not ready",
+            "checks": gin.H{
+                "database": "unhealthy",
+                "error":    err.Error(),
+            },
+        })
+        return
+    }
+
+    c.JSON(200, gin.H{
+        "status": "ready",
+        "checks": gin.H{
+            "database": "healthy",
+        },
+    })
 }

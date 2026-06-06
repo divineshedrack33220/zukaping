@@ -9,12 +9,15 @@ import (
 
     "coded/database"
     "coded/models"
+    "coded/pkg/logger"
 
     "github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/bson/primitive"
     "go.mongodb.org/mongo-driver/mongo"
 )
+
+var chatLog = logger.Logger.With().Str("handler", "chat").Logger()
 
 func GetChatList(c *gin.Context) {
     userIDStr := c.GetString("userId")
@@ -213,51 +216,80 @@ func CreateChat(c *gin.Context) {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    chatsColl := database.Client.Database("coded").Collection("chats")
-
-    // Only check for existing chats if it's NOT a group chat
-    if !req.IsGroup {
-        filter := bson.M{
-            "participants": bson.M{
-                "$all":  participantIDs,
-                "$size": len(participantIDs),
-            },
-            "isGroup": bson.M{"$ne": true},
-        }
-
-        var existingChat models.Chat
-        err = chatsColl.FindOne(ctx, filter).Decode(&existingChat)
-        if err == nil {
-            c.JSON(http.StatusOK, gin.H{
-                "id": existingChat.ID.Hex(),
-            })
-            return
-        }
-        if err != mongo.ErrNoDocuments {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-            return
-        }
-    }
-
-    var adminIds []primitive.ObjectID
-    if req.IsGroup {
-        adminIds = []primitive.ObjectID{userID}
-    }
-
-    newChat := models.Chat{
-        ID:               primitive.NewObjectID(),
-        Participants:     participantIDs,
-        LastMessageAt:    time.Now().Unix(),
-        CreatedAt:        time.Now().Unix(),
-        IsGroup:          req.IsGroup,
-        GroupName:        req.GroupName,
-        GroupDescription: req.GroupDescription,
-        GroupAvatar:      req.GroupAvatar,
-        AdminIDs:         adminIds,
-    }
-
-    _, err = chatsColl.InsertOne(ctx, newChat)
+    // Use transaction for chat creation to ensure consistency
+    session, err := database.Client.StartSession()
     if err != nil {
+        chatLog.Error().Err(err).Msg("Failed to start session")
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+        return
+    }
+    defer session.EndSession(ctx)
+
+    var newChat models.Chat
+    _, err = session.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (interface{}, error) {
+        chatsColl := database.Client.Database("coded").Collection("chats")
+
+        // Only check for existing chats if it's NOT a group chat
+        if !req.IsGroup {
+            filter := bson.M{
+                "participants": bson.M{
+                    "$all":  participantIDs,
+                    "$size": len(participantIDs),
+                },
+                "isGroup": bson.M{"$ne": true},
+            }
+
+            var existingChat models.Chat
+            err = chatsColl.FindOne(sessCtx, filter).Decode(&existingChat)
+            if err == nil {
+                // Chat exists, return it (but we can't return from transaction callback easily)
+                // We'll handle this case after the transaction
+                return existingChat, mongo.ErrNoDocuments // Signal to skip creation
+            }
+            if err != mongo.ErrNoDocuments {
+                return nil, err
+            }
+        }
+
+        var adminIds []primitive.ObjectID
+        if req.IsGroup {
+            adminIds = []primitive.ObjectID{userID}
+        }
+
+        newChat = models.Chat{
+            ID:               primitive.NewObjectID(),
+            Participants:     participantIDs,
+            LastMessageAt:    time.Now().Unix(),
+            CreatedAt:        time.Now().Unix(),
+            IsGroup:          req.IsGroup,
+            GroupName:        req.GroupName,
+            GroupDescription: req.GroupDescription,
+            GroupAvatar:      req.GroupAvatar,
+            AdminIDs:         adminIds,
+        }
+
+        _, err = chatsColl.InsertOne(sessCtx, newChat)
+        return newChat, err
+    })
+
+    if err != nil {
+        if err == mongo.ErrNoDocuments {
+            // Existing chat was found, fetch and return it
+            chatsColl := database.Client.Database("coded").Collection("chats")
+            filter := bson.M{
+                "participants": bson.M{
+                    "$all":  participantIDs,
+                    "$size": len(participantIDs),
+                },
+                "isGroup": bson.M{"$ne": true},
+            }
+            var existingChat models.Chat
+            if findErr := chatsColl.FindOne(ctx, filter).Decode(&existingChat); findErr == nil {
+                c.JSON(http.StatusOK, gin.H{"id": existingChat.ID.Hex()})
+                return
+            }
+        }
+        chatLog.Error().Err(err).Msg("Failed to create chat")
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create chat"})
         return
     }

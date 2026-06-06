@@ -8,9 +8,12 @@ import (
 
     "coded/handlers"
     "coded/middleware"
+    "coded/pkg/logger"
+    "coded/pkg/metrics"
 
     "github.com/gin-contrib/cors"
     "github.com/gin-gonic/gin"
+    "github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //go:embed index.html
@@ -18,6 +21,15 @@ var landingPageHTML string
 
 func SetupRouter() *gin.Engine {
     router := gin.Default()
+
+    // Add Request-ID middleware first
+    router.Use(logger.RequestIDMiddleware())
+
+    // Add metrics middleware
+    router.Use(metrics.Middleware())
+
+    // Prometheus metrics endpoint
+    router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
     // Serve landing page at root
     router.GET("/", func(c *gin.Context) {
@@ -50,6 +62,12 @@ func SetupRouter() *gin.Engine {
         c.Data(200, "application/vnd.android.package-archive", []byte{0x50, 0x4B, 0x05, 0x06})
     })
 
+    // Health check endpoints
+    router.GET("/health/live", func(c *gin.Context) {
+        c.JSON(200, gin.H{"status": "alive"})
+    })
+    router.GET("/health/ready", handlers.ReadinessCheck)
+
     // Add health check endpoint for testing
     router.GET("/api/health", func(c *gin.Context) {
         c.JSON(200, gin.H{
@@ -61,21 +79,18 @@ func SetupRouter() *gin.Engine {
         })
     })
 
-    // CORS configuration - Updated for Render
+    // CORS configuration - restrict to allowed origins
     allowOrigins := []string{
-        "http://localhost:*",
-        "http://127.0.0.1:*",
-        "http://localhost:5500",
         "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
         "http://127.0.0.1:8080",
-        "http://127.0.0.1:5500",
-        "http://localhost:10005",
-        "http://127.0.0.1:10005",
-        "http://localhost:*",
-        "https://coded-backend.onrender.com",
-        "https://*.onrender.com",
-        "https://zukaping.onrender.com",
-        "https://lemon16.onrender.com",
+        "https://zukaping.app",
+        "https://app.zukaping.app",
+        "https://lemon16.app",
+        "https://app.lemon16.app",
     }
     
     // Add allowed origins from environment variable
@@ -83,13 +98,24 @@ func SetupRouter() *gin.Engine {
         allowOrigins = append(allowOrigins, strings.Split(envOrigins, ",")...)
     }
 
+    originMap := make(map[string]bool)
+    for _, o := range allowOrigins {
+        originMap[o] = true
+    }
+
     router.Use(cors.New(cors.Config{
         AllowOriginFunc: func(origin string) bool {
-		return true // Allow all for development
-	},
+            if os.Getenv("GIN_MODE") != "release" {
+                // Allow localhost with any port in development
+                if strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:") {
+                    return true
+                }
+            }
+            return originMap[origin]
+        },
         AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-        AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept", "X-Requested-With"},
-        ExposeHeaders:    []string{"Content-Length", "Content-Type"},
+        AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept", "X-Requested-With", "X-Request-ID"},
+        ExposeHeaders:    []string{"Content-Length", "Content-Type", "X-Request-ID"},
         AllowCredentials: true,
         MaxAge:           12 * time.Hour,
     }))

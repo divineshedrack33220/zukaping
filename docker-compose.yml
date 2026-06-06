@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: zukaping-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=coded
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: zukaping-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - GIN_MODE=debug
+      - PORT=8080
+      - MONGODB_URI=mongodb://mongodb:27017
+      - JWT_SECRET=your-super-secret-jwt-key-min-32-chars-long
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
+      - VAPID_PUBLIC_KEY=
+      - VAPID_PRIVATE_KEY=
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./mobile_app
+      dockerfile: Dockerfile
+    container_name: zukaping-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:

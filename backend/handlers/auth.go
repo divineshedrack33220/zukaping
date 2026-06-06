@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -10,6 +9,8 @@ import (
 	"coded/database"
 	"coded/middleware"
 	"coded/models"
+	"coded/pkg/logger"
+	"coded/pkg/validation"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -20,23 +21,23 @@ import (
 )
 
 type SignupRequest struct {
-	Email      string `json:"email" binding:"required,email"`
-	Password   string `json:"password" binding:"required,min=6"`
-	InviteCode string `json:"inviteCode"`
+	Email      string `json:"email" binding:"required,email" validate:"email"`
+	Password   string `json:"password" binding:"required,min=8" validate:"strongpassword"`
+	InviteCode string `json:"inviteCode" validate:"omitempty,alphanum"`
 }
 
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Email    string `json:"email" binding:"required,email" validate:"email"`
+	Password string `json:"password" binding:"required" validate:"required"`
 }
 
 func Signup(c *gin.Context) {
-	// Add request logging
-	fmt.Printf("[%s] 📝 POST /api/signup received\n", time.Now().Format("15:04:05"))
+	log := logger.WithContext(c)
+	log.Info().Msg("POST /api/signup received")
 	
 	var req SignupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		fmt.Printf("❌ Bad request: %v\n", err)
+		log.Warn().Err(err).Msg("Bad request")
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request data",
 			"details": err.Error(),
@@ -44,7 +45,21 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("📝 Signup attempt for email: %s\n", req.Email)
+	// Additional validation with custom validators
+	if err := validation.ValidateStruct(&req); err != nil {
+		log.Warn().Err(err).Msg("Validation failed")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Sanitize inputs
+	req.Email = validation.SanitizeEmail(req.Email)
+	req.InviteCode = validation.SanitizeString(req.InviteCode)
+
+	log.Info().Str("email", req.Email).Msg("Signup attempt")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -55,7 +70,7 @@ func Signup(c *gin.Context) {
 	var existingUser models.User
 	err := usersColl.FindOne(ctx, bson.M{"email": req.Email}).Decode(&existingUser)
 	if err == nil {
-		fmt.Printf("⚠️  Email already in use: %s\n", req.Email)
+		log.Warn().Str("email", req.Email).Msg("Email already in use")
 		c.JSON(http.StatusConflict, gin.H{
 			"error":   "Email already registered",
 			"message": "Please use a different email or login instead",
@@ -63,7 +78,7 @@ func Signup(c *gin.Context) {
 		return
 	}
 	if err != mongo.ErrNoDocuments {
-		fmt.Printf("❌ Database error checking email: %v\n", err)
+		log.Error().Err(err).Msg("Database error checking email")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Database error",
 			"message": "Please try again later",
@@ -71,10 +86,10 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	// Hash password with cost 12
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
 	if err != nil {
-		fmt.Printf("❌ Failed to hash password: %v\n", err)
+		log.Error().Err(err).Msg("Failed to hash password")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Server error",
 			"message": "Failed to process password",
@@ -105,7 +120,7 @@ func Signup(c *gin.Context) {
 	// Insert user
 	_, err = usersColl.InsertOne(ctx, user)
 	if err != nil {
-		fmt.Printf("❌ Failed to insert user: %v\n", err)
+		log.Error().Err(err).Msg("Failed to insert user")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Database error",
 			"message": "Failed to create user account",
@@ -120,13 +135,13 @@ func Signup(c *gin.Context) {
 			bson.M{"$addToSet": bson.M{"participants": user.ID}},
 		)
 		if chatErr != nil {
-			fmt.Printf("⚠️ Failed to auto-join group by inviteCode: %v\n", chatErr)
+			log.Warn().Err(chatErr).Str("inviteCode", req.InviteCode).Msg("Failed to auto-join group")
 		} else {
-			fmt.Printf("✅ New user %s auto-joined group via inviteCode %s\n", user.Email, req.InviteCode)
+			log.Info().Str("email", user.Email).Str("inviteCode", req.InviteCode).Msg("User auto-joined group")
 		}
 	}
 
-	fmt.Printf("✅ User created: %s (ID: %s)\n", req.Email, user.ID.Hex())
+	log.Info().Str("email", req.Email).Str("userId", user.ID.Hex()).Msg("User created")
 
 	// Generate JWT token
 	expirationTime := time.Now().Add(7 * 24 * time.Hour)
@@ -141,13 +156,12 @@ func Signup(c *gin.Context) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		jwtSecret = "your-secret-key-change-this-in-production"
-		fmt.Println("⚠️  Using default JWT secret. Set JWT_SECRET environment variable!")
+		log.Fatal().Msg("JWT_SECRET not configured")
 	}
 	
 	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {
-		fmt.Printf("❌ Failed to generate token: %v\n", err)
+		log.Error().Err(err).Msg("Failed to generate token")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Server error",
 			"message": "Failed to generate authentication token",
@@ -155,7 +169,7 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("✅ Signup completed successfully for: %s\n", req.Email)
+	log.Info().Str("email", req.Email).Msg("Signup completed successfully")
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message":  "User created successfully",
@@ -167,12 +181,12 @@ func Signup(c *gin.Context) {
 }
 
 func Login(c *gin.Context) {
-	// Add request logging
-	fmt.Printf("[%s] 🔐 POST /api/login received\n", time.Now().Format("15:04:05"))
+	log := logger.WithContext(c)
+	log.Info().Msg("POST /api/login received")
 	
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		fmt.Printf("❌ Bad request: %v\n", err)
+		log.Warn().Err(err).Msg("Bad request")
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request data",
 			"details": err.Error(),
@@ -180,7 +194,20 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("📝 Login attempt for email: %s\n", req.Email)
+	// Additional validation
+	if err := validation.ValidateStruct(&req); err != nil {
+		log.Warn().Err(err).Msg("Validation failed")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Sanitize email
+	req.Email = validation.SanitizeEmail(req.Email)
+
+	log.Info().Str("email", req.Email).Msg("Login attempt")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -191,7 +218,7 @@ func Login(c *gin.Context) {
 	var user models.User
 	err := usersColl.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
 	if err == mongo.ErrNoDocuments {
-		fmt.Printf("❌ User not found: %s\n", req.Email)
+		log.Warn().Str("email", req.Email).Msg("User not found")
 		// Use same error message for security (don't reveal if email exists)
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error":   "Authentication failed",
@@ -200,7 +227,7 @@ func Login(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		fmt.Printf("❌ Database error: %v\n", err)
+		log.Error().Err(err).Msg("Database error")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Database error",
 			"message": "Please try again later",
@@ -208,11 +235,11 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("✅ User found: %s (ID: %s)\n", req.Email, user.ID.Hex())
+	log.Info().Str("email", req.Email).Str("userId", user.ID.Hex()).Msg("User found")
 
 	// Check password
 	if user.PasswordHash == nil {
-		fmt.Printf("❌ No password hash for user: %s\n", req.Email)
+		log.Warn().Str("email", req.Email).Msg("No password hash for user")
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error":   "Authentication failed",
 			"message": "Invalid email or password",
@@ -222,7 +249,7 @@ func Login(c *gin.Context) {
 
 	err = bcrypt.CompareHashAndPassword([]byte(*user.PasswordHash), []byte(req.Password))
 	if err != nil {
-		fmt.Printf("❌ Invalid password for: %s\n", req.Email)
+		log.Warn().Str("email", req.Email).Msg("Invalid password")
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error":   "Authentication failed",
 			"message": "Invalid email or password",
@@ -230,7 +257,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("✅ Password correct for: %s\n", req.Email)
+	log.Info().Str("email", req.Email).Msg("Password correct")
 
 	// Update last seen time
 	usersColl.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{
@@ -250,13 +277,12 @@ func Login(c *gin.Context) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		jwtSecret = "your-secret-key-change-this-in-production"
-		fmt.Println("⚠️  Using default JWT secret. Set JWT_SECRET environment variable!")
+		log.Fatal().Msg("JWT_SECRET not configured")
 	}
 	
 	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {
-		fmt.Printf("❌ Failed to generate token: %v\n", err)
+		log.Error().Err(err).Msg("Failed to generate token")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Server error",
 			"message": "Failed to generate authentication token",
@@ -264,7 +290,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("✅ Login successful for: %s, token generated\n", req.Email)
+	log.Info().Str("email", req.Email).Msg("Login successful")
 
 	c.JSON(http.StatusOK, gin.H{
 		"token":    tokenString,
