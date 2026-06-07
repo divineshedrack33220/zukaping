@@ -306,6 +306,13 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildScreen1() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fillColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F5);
+    final borderColor = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE0E0E0);
+    final dividerColor = isDark ? const Color(0xFF3A3A3C) : Colors.grey[300]!;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final hintColor = isDark ? Colors.grey[500] : Colors.grey[600];
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -314,26 +321,52 @@ class _SignupScreenState extends State<SignupScreen> {
           TextField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
+            style: TextStyle(color: textColor),
             decoration: InputDecoration(
               hintText: 'Email address',
+              hintStyle: TextStyle(color: hintColor),
               filled: true,
-              fillColor: const Color(0xFFF5F5F5),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              fillColor: fillColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF00AEEF), width: 2),
+              ),
             ),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _passwordController,
             obscureText: _obscurePassword,
+            style: TextStyle(color: textColor),
             decoration: InputDecoration(
               hintText: 'Password',
+              hintStyle: TextStyle(color: hintColor),
               filled: true,
-              fillColor: const Color(0xFFF5F5F5),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              fillColor: fillColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF00AEEF), width: 2),
+              ),
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey,
+                  color: isDark ? Colors.grey[400] : Colors.grey,
                 ),
                 onPressed: () {
                   setState(() {
@@ -354,19 +387,19 @@ class _SignupScreenState extends State<SignupScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
               ),
               child: _isLoading
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Sign Up', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Sign Up', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white)),
             ),
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: Divider(color: Colors.grey[300])),
+              Expanded(child: Divider(color: dividerColor)),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text('or', style: TextStyle(color: Colors.grey[600])),
+                child: Text('or', style: TextStyle(color: hintColor)),
               ),
-              Expanded(child: Divider(color: Colors.grey[300])),
+              Expanded(child: Divider(color: dividerColor)),
             ],
           ),
           const SizedBox(height: 16),
@@ -376,7 +409,7 @@ class _SignupScreenState extends State<SignupScreen> {
             child: OutlinedButton(
               onPressed: _isLoading ? null : _handleGoogleSignIn,
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFE0E0E0)),
+                side: BorderSide(color: borderColor),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
               ),
               child: Row(
@@ -388,9 +421,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     height: 20,
                   ),
                   const SizedBox(width: 12),
-                  const Text(
+                  Text(
                     'Continue with Google',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textColor),
                   ),
                 ],
               ),
@@ -400,7 +433,7 @@ class _SignupScreenState extends State<SignupScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text("Already have an account? "),
+              Text("Already have an account? ", style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600])),
               GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: const Text('Log in', style: TextStyle(color: Color(0xFF00AEEF), fontWeight: FontWeight.w600)),
@@ -413,22 +446,27 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildAvatarScreen() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final avatar = _uploadedPhotos[0];
+    final bgColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F5);
+    final borderColor = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE0E0E0);
+    final textColor = isDark ? Colors.white : Colors.black;
+    final hintColor = isDark ? Colors.grey[400] : const Color(0xFF8E8E8E);
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
           const SizedBox(height: 40),
-          const Text(
+          Text(
             'Upload a Profile Picture',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Choose a clear photo of yourself. A profile picture is mandatory to help keep the community authentic and safe.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, color: Colors.grey),
+            style: TextStyle(fontSize: 15, color: isDark ? Colors.grey[400] : Colors.grey),
           ),
           const SizedBox(height: 50),
           
@@ -441,15 +479,15 @@ class _SignupScreenState extends State<SignupScreen> {
                   width: 160,
                   height: 160,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F5),
+                    color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: avatar != null ? const Color(0xFF00AEEF) : const Color(0xFFE0E0E0),
+                      color: avatar != null ? const Color(0xFF00AEEF) : borderColor,
                       width: 4,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                         blurRadius: 15,
                         spreadRadius: 2,
                       ),
@@ -525,7 +563,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
-                  color: avatar != null ? Colors.white : Colors.black45,
+                  color: avatar != null ? Colors.white : (isDark ? Colors.white54 : Colors.black45),
                 ),
               ),
             ),
@@ -536,26 +574,46 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildScreen2() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fillColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F5);
+    final borderColor = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE0E0E0);
+    final textColor = isDark ? Colors.white : Colors.black;
+    final hintColor = isDark ? Colors.grey[500] : Colors.grey[600];
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
           const SizedBox(height: 40),
-          const Text('What should we call you?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600)),
+          Text('What should we call you?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: textColor)),
           const SizedBox(height: 40),
           TextField(
             controller: _nameController,
+            style: TextStyle(color: textColor),
             decoration: InputDecoration(
               hintText: 'Full name',
+              hintStyle: TextStyle(color: hintColor),
               filled: true,
-              fillColor: const Color(0xFFF5F5F5),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              fillColor: fillColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF00AEEF), width: 2),
+              ),
             ),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _dobController,
             readOnly: true,
+            style: TextStyle(color: textColor),
             onTap: () async {
               final date = await showDatePicker(
                 context: context,
@@ -565,10 +623,11 @@ class _SignupScreenState extends State<SignupScreen> {
                 builder: (context, child) {
                   return Theme(
                     data: Theme.of(context).copyWith(
-                      colorScheme: const ColorScheme.light(
+                      colorScheme: ColorScheme.light(
                         primary: Color(0xFF00AEEF),
                         onPrimary: Colors.white,
-                        onSurface: Colors.black,
+                        onSurface: isDark ? Colors.white : Colors.black,
+                        surface: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                       ),
                     ),
                     child: child!,
@@ -584,10 +643,22 @@ class _SignupScreenState extends State<SignupScreen> {
             },
             decoration: InputDecoration(
               hintText: 'Birth date (YYYY-MM-DD)',
+              hintStyle: TextStyle(color: hintColor),
               suffixIcon: const Icon(Icons.calendar_today, color: Color(0xFF00AEEF)),
               filled: true,
-              fillColor: const Color(0xFFF5F5F5),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              fillColor: fillColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF00AEEF), width: 2),
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -600,7 +671,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 backgroundColor: const Color(0xFF00AEEF),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
               ),
-              child: const Text('Next', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+              child: const Text('Next', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white)),
             ),
           ),
         ],
@@ -609,32 +680,38 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildScreen3() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final unselectedColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F5);
+    final unselectedBorder = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE0E0E0);
+    final unselectedText = isDark ? Colors.white : Colors.black;
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
           const SizedBox(height: 40),
-          const Text('Who are you?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600)),
+          Text('Who are you?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: textColor)),
           const SizedBox(height: 24),
           Row(
             children: [
-              _buildGenderButton('Male', 'male'),
+              _buildGenderButton('Male', 'male', isDark),
               const SizedBox(width: 12),
-              _buildGenderButton('Female', 'female'),
+              _buildGenderButton('Female', 'female', isDark),
               const SizedBox(width: 12),
-              _buildGenderButton('Other', 'other'),
+              _buildGenderButton('Other', 'other', isDark),
             ],
           ),
           const SizedBox(height: 40),
-          const Text('Who are you interested in?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600)),
+          Text('Who are you interested in?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: textColor)),
           const SizedBox(height: 24),
           Row(
             children: [
-              _buildInterestButton('Men', 'men'),
+              _buildInterestButton('Men', 'men', isDark),
               const SizedBox(width: 12),
-              _buildInterestButton('Women', 'women'),
+              _buildInterestButton('Women', 'women', isDark),
               const SizedBox(width: 12),
-              _buildInterestButton('Everyone', 'everyone'),
+              _buildInterestButton('Everyone', 'everyone', isDark),
             ],
           ),
           const SizedBox(height: 40),
@@ -647,7 +724,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 backgroundColor: const Color(0xFF00AEEF),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
               ),
-              child: const Text('Next', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+              child: const Text('Next', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white)),
             ),
           ),
         ],
@@ -655,7 +732,12 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _buildGenderButton(String label, String value) {
+  Widget _buildGenderButton(String label, String value, bool isDark) {
+    final selected = _gender == value;
+    final unselectedColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F5);
+    final unselectedBorder = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE0E0E0);
+    final unselectedText = isDark ? Colors.white : Colors.black;
+    
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _gender = value),
@@ -663,15 +745,15 @@ class _SignupScreenState extends State<SignupScreen> {
         child: Container(
           height: 52,
           decoration: BoxDecoration(
-            color: _gender == value ? const Color(0xFF00AEEF) : const Color(0xFFF5F5F5),
-            border: Border.all(color: const Color(0xFFE0E0E0)),
+            color: selected ? const Color(0xFF00AEEF) : unselectedColor,
+            border: Border.all(color: selected ? const Color(0xFF00AEEF) : unselectedBorder),
             borderRadius: BorderRadius.circular(26),
           ),
           child: Center(
             child: Text(
               label, 
               style: TextStyle(
-                color: _gender == value ? Colors.white : Colors.grey[800], 
+                color: selected ? Colors.white : unselectedText, 
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -681,7 +763,12 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _buildInterestButton(String label, String value) {
+  Widget _buildInterestButton(String label, String value, bool isDark) {
+    final selected = _interestedIn == value;
+    final unselectedColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F5);
+    final unselectedBorder = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE0E0E0);
+    final unselectedText = isDark ? Colors.white : Colors.black;
+    
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _interestedIn = value),
@@ -689,15 +776,15 @@ class _SignupScreenState extends State<SignupScreen> {
         child: Container(
           height: 52,
           decoration: BoxDecoration(
-            color: _interestedIn == value ? const Color(0xFF00AEEF) : const Color(0xFFF5F5F5),
-            border: Border.all(color: const Color(0xFFE0E0E0)),
+            color: selected ? const Color(0xFF00AEEF) : unselectedColor,
+            border: Border.all(color: selected ? const Color(0xFF00AEEF) : unselectedBorder),
             borderRadius: BorderRadius.circular(26),
           ),
           child: Center(
             child: Text(
               label, 
               style: TextStyle(
-                color: _interestedIn == value ? Colors.white : Colors.grey[800], 
+                color: selected ? Colors.white : unselectedText, 
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -708,14 +795,19 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildScreen4() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final hintColor = isDark ? Colors.grey[400] : const Color(0xFF666666);
+    final borderColor = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE0E0E0);
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
           const SizedBox(height: 100),
-          const Text("Enable Location", textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600)),
+          Text("Enable Location", textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: textColor)),
           const SizedBox(height: 8),
-          const Text('We use your location to show nearby people', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF666666))),
+          Text('We use your location to show nearby people', textAlign: TextAlign.center, style: TextStyle(color: hintColor)),
           const SizedBox(height: 40),
           SizedBox(
             width: double.infinity,
@@ -726,7 +818,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 backgroundColor: const Color(0xFF00AEEF),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
               ),
-              child: const Text('Allow location', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+              child: const Text('Allow location', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white)),
             ),
           ),
           const SizedBox(height: 16),
@@ -736,10 +828,10 @@ class _SignupScreenState extends State<SignupScreen> {
             child: OutlinedButton(
               onPressed: _nextScreen,
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFE0E0E0)),
+                side: BorderSide(color: borderColor),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
               ),
-              child: const Text('Skip', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+              child: Text('Skip', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textColor)),
             ),
           ),
         ],
@@ -750,12 +842,19 @@ class _SignupScreenState extends State<SignupScreen> {
   void _getLocation() async { }
 
   Widget _buildScreen5() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final mainBg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);
+    final otherBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F5);
+    final otherBorder = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE0E0E0);
+    final iconColor = isDark ? Colors.grey[400] : const Color(0xFF8E8E8E);
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
           const SizedBox(height: 40),
-          const Text('Add photos', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600)),
+          Text('Add photos', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: textColor)),
           const SizedBox(height: 24),
           GridView.builder(
             shrinkWrap: true,
@@ -767,7 +866,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 final mainAvatar = _uploadedPhotos[0];
                 return Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F5),
+                    color: mainBg,
                     border: Border.all(color: const Color(0xFF00AEEF), width: 2),
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -776,7 +875,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       if (mainAvatar != null)
                         ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.network(mainAvatar, fit: BoxFit.cover, width: double.infinity, height: double.infinity))
                       else
-                        const Center(child: Icon(Icons.person, color: Color(0xFF00AEEF))),
+                        Center(child: Icon(Icons.person, color: Color(0xFF00AEEF))),
                       Positioned(
                         top: 4, left: 4,
                         child: Container(
@@ -794,15 +893,15 @@ class _SignupScreenState extends State<SignupScreen> {
                 onTap: () => _uploadPhoto(index),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F5),
-                    border: Border.all(color: const Color(0xFFE0E0E0)),
+                    color: otherBg,
+                    border: Border.all(color: otherBorder),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: _uploadingSlots[index]
                       ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AEEF)))
                       : _uploadedPhotos[index] != null
                           ? ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.network(_uploadedPhotos[index]!, fit: BoxFit.cover))
-                          : const Center(child: Icon(Icons.add_a_photo_outlined, color: Color(0xFF8E8E8E))),
+                          : Center(child: Icon(Icons.add_a_photo_outlined, color: iconColor)),
                 ),
               );
             },
@@ -818,7 +917,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 disabledBackgroundColor: const Color(0xFF00AEEF).withOpacity(0.3),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
               ),
-              child: const Text('Next', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+              child: const Text('Next', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white)),
             ),
           ),
         ],
@@ -827,21 +926,40 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildScreen6() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fillColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F5);
+    final borderColor = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE0E0E0);
+    final textColor = isDark ? Colors.white : Colors.black;
+    final hintColor = isDark ? Colors.grey[500] : Colors.grey[600];
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
           const SizedBox(height: 40),
-          const Text('Your Bio', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600)),
+          Text('Your Bio', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: textColor)),
           const SizedBox(height: 40),
           TextField(
             controller: _bioController,
             maxLines: 4,
+            style: TextStyle(color: textColor),
             decoration: InputDecoration(
               hintText: 'Describe yourself...',
+              hintStyle: TextStyle(color: hintColor),
               filled: true,
-              fillColor: const Color(0xFFF5F5F5),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              fillColor: fillColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF00AEEF), width: 2),
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -854,7 +972,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 backgroundColor: const Color(0xFF00AEEF),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
               ),
-              child: const Text('Next', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+              child: const Text('Next', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white)),
             ),
           ),
         ],
@@ -863,12 +981,18 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildScreen7() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final unselectedColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F5);
+    final unselectedBorder = isDark ? const Color(0xFF3A3A3C) : const Color(0xFFE0E0E0);
+    final unselectedText = isDark ? Colors.white : Colors.black;
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
           const SizedBox(height: 100),
-          const Text('Ready to connect', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600)),
+          Text('Ready to connect', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: textColor)),
           const SizedBox(height: 40),
           Row(
             children: [
@@ -878,11 +1002,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   child: Container(
                     height: 52,
                     decoration: BoxDecoration(
-                      color: _status == 'available' ? const Color(0xFF00AEEF) : const Color(0xFFF5F5F5),
-                      border: Border.all(color: const Color(0xFFE0E0E0)),
+                      color: _status == 'available' ? const Color(0xFF00AEEF) : unselectedColor,
+                      border: Border.all(color: _status == 'available' ? const Color(0xFF00AEEF) : unselectedBorder),
                       borderRadius: BorderRadius.circular(26),
                     ),
-                    child: Center(child: Text('Available', style: TextStyle(color: _status == 'available' ? Colors.black : Colors.grey[800]))),
+                    child: Center(child: Text('Available', style: TextStyle(color: _status == 'available' ? Colors.white : unselectedText, fontWeight: FontWeight.w600))),
                   ),
                 ),
               ),
@@ -893,11 +1017,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   child: Container(
                     height: 52,
                     decoration: BoxDecoration(
-                      color: _status == 'busy' ? const Color(0xFF00AEEF) : const Color(0xFFF5F5F5),
-                      border: Border.all(color: const Color(0xFFE0E0E0)),
+                      color: _status == 'busy' ? const Color(0xFF00AEEF) : unselectedColor,
+                      border: Border.all(color: _status == 'busy' ? const Color(0xFF00AEEF) : unselectedBorder),
                       borderRadius: BorderRadius.circular(26),
                     ),
-                    child: Center(child: Text('Busy', style: TextStyle(color: _status == 'busy' ? Colors.black : Colors.grey[800]))),
+                    child: Center(child: Text('Busy', style: TextStyle(color: _status == 'busy' ? Colors.white : unselectedText, fontWeight: FontWeight.w600))),
                   ),
                 ),
               ),
@@ -914,8 +1038,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
               ),
               child: _isLoading
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Go Live', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Go Live', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white)),
             ),
           ),
         ],
@@ -958,9 +1082,15 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _showGoogleFallbackOption(String originalError) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final hintColor = isDark ? Colors.grey[400] : Colors.grey[700];
+    final borderColor = isDark ? const Color(0xFF3A3A3C) : Colors.grey[300]!;
+    
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -981,12 +1111,12 @@ class _SignupScreenState extends State<SignupScreen> {
                   child: Icon(Icons.warning_amber_rounded, color: Colors.amber[800], size: 28),
                 ),
                 const SizedBox(width: 16),
-                const Text(
+                Text(
                   'Google Auth Failed',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: textColor,
                   ),
                 ),
               ],
@@ -996,7 +1126,7 @@ class _SignupScreenState extends State<SignupScreen> {
               'Google authentication failed or is not configured for this environment.\n\nError: $originalError',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[700],
+                color: hintColor,
                 height: 1.5,
               ),
             ),
@@ -1008,10 +1138,10 @@ class _SignupScreenState extends State<SignupScreen> {
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: Colors.grey[300]!),
+                      side: BorderSide(color: borderColor),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
-                    child: const Text('Cancel', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+                    child: Text('Cancel', style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(width: 12),

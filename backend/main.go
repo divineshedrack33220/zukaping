@@ -61,12 +61,18 @@ func main() {
 			logger.Logger.Error().Err(err).Int("attempt", i).Msg("DB connection failed")
 			time.Sleep(2 * time.Second)
 		} else {
-			dbConnected = true
+			// Check if client is actually connected (not degraded mode)
+			if database.Client != nil {
+				dbConnected = true
+				break
+			}
+			logger.Logger.Warn().Msg("DB connected but client is nil (degraded mode)")
+			dbConnected = false
 			break
 		}
 	}
 
-	if dbConnected {
+	if dbConnected && database.Client != nil {
 		logger.Logger.Info().Msg("✅ MongoDB connected")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -75,6 +81,9 @@ func main() {
 		if err := database.Client.Ping(ctx, nil); err != nil {
 			logger.Logger.Warn().Err(err).Msg("MongoDB ping failed")
 		}
+
+		// Clean up chats with duplicate/empty participants to fix unique index
+		go cleanupDuplicateChats()
 
 		// Start background DB cleanup worker for old posts (older than 50 days)
 		go startPostCleanupWorker()
@@ -202,5 +211,36 @@ func runPostCleanup() {
 		logger.Logger.Info().Int64("deleted", res.DeletedCount).Msg("Deleted posts older than 50 days")
 	} else {
 		logger.Logger.Info().Msg("Cleanup complete: No posts older than 50 days found")
+	}
+}
+
+// cleanupDuplicateChats removes chats with empty/undefined participants to fix unique index
+func cleanupDuplicateChats() {
+	if database.Client == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	chatsColl := database.Client.Database("coded").Collection("chats")
+
+	// Remove chats with empty participants array
+	filter := bson.M{
+		"$or": []bson.M{
+			{"participants": bson.M{"$size": 0}},
+			{"participants": bson.M{"$exists": false}},
+			{"participants": nil},
+		},
+	}
+
+	res, err := chatsColl.DeleteMany(ctx, filter)
+	if err != nil {
+		logger.Logger.Error().Err(err).Msg("Error cleaning up duplicate chats")
+		return
+	}
+
+	if res.DeletedCount > 0 {
+		logger.Logger.Info().Int64("deleted", res.DeletedCount).Msg("Cleaned up chats with empty participants")
 	}
 }

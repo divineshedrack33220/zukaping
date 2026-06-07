@@ -11,7 +11,6 @@ import (
     "coded/pkg/logger"
     "coded/pkg/metrics"
 
-    "github.com/gin-contrib/cors"
     "github.com/gin-gonic/gin"
     "github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -20,9 +19,68 @@ import (
 var landingPageHTML string
 
 func SetupRouter() *gin.Engine {
-    router := gin.Default()
+    router := gin.New()
+    router.Use(gin.Recovery())
 
-    // Add Request-ID middleware first
+    // CORS MUST be first to handle OPTIONS preflight requests
+    allowOrigins := []string{
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8080",
+        "https://zukaping.app",
+        "https://app.zukaping.app",
+        "https://lemon16.app",
+        "https://app.lemon16.app",
+    }
+    
+    if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {
+        allowOrigins = append(allowOrigins, strings.Split(envOrigins, ",")...)
+    }
+
+    originMap := make(map[string]bool)
+    for _, o := range allowOrigins {
+        originMap[o] = true
+    }
+
+    // CORS middleware - must be first
+    router.Use(func(c *gin.Context) {
+        origin := c.Request.Header.Get("Origin")
+        
+        // Always allow local development origins, even if the backend is running in release mode.
+        // Flutter web dev servers use random localhost ports, so hard-coding the port is brittle.
+        if strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:") {
+            c.Header("Access-Control-Allow-Origin", origin)
+            c.Header("Access-Control-Allow-Credentials", "true")
+            c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+            c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization, Accept, X-Requested-With, X-Request-ID")
+            c.Header("Access-Control-Expose-Headers", "Content-Length, Content-Type, X-Request-ID")
+            c.Header("Access-Control-Max-Age", "43200")
+            
+            if c.Request.Method == "OPTIONS" {
+                c.AbortWithStatus(204)
+                return
+            }
+        } else if originMap[origin] {
+            c.Header("Access-Control-Allow-Origin", origin)
+            c.Header("Access-Control-Allow-Credentials", "true")
+            c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+            c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization, Accept, X-Requested-With, X-Request-ID")
+            c.Header("Access-Control-Expose-Headers", "Content-Length, Content-Type, X-Request-ID")
+            c.Header("Access-Control-Max-Age", "43200")
+            
+            if c.Request.Method == "OPTIONS" {
+                c.AbortWithStatus(204)
+                return
+            }
+        }
+        
+        c.Next()
+    })
+
+    // Add Request-ID middleware
     router.Use(logger.RequestIDMiddleware())
 
     // Add metrics middleware
@@ -51,14 +109,10 @@ func SetupRouter() *gin.Engine {
             }
         }
         
-        // If no compiled APK is uploaded yet, stream a tiny valid empty zip/APK archive 
-        // directly to force the browser to trigger a direct download action immediately!
         c.Header("Content-Description", "File Transfer")
         c.Header("Content-Disposition", "attachment; filename=zukaping-placeholder.apk")
         c.Header("Content-Type", "application/vnd.android.package-archive")
         c.Header("Content-Transfer-Encoding", "binary")
-        
-        // ZIP/APK empty archive magic bytes: PK\x05\x06
         c.Data(200, "application/vnd.android.package-archive", []byte{0x50, 0x4B, 0x05, 0x06})
     })
 
@@ -68,7 +122,6 @@ func SetupRouter() *gin.Engine {
     })
     router.GET("/health/ready", handlers.ReadinessCheck)
 
-    // Add health check endpoint for testing
     router.GET("/api/health", func(c *gin.Context) {
         c.JSON(200, gin.H{
             "status":  "ok",
@@ -78,47 +131,6 @@ func SetupRouter() *gin.Engine {
             "google":  "Google OAuth available",
         })
     })
-
-    // CORS configuration - restrict to allowed origins
-    allowOrigins := []string{
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8080",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:8080",
-        "https://zukaping.app",
-        "https://app.zukaping.app",
-        "https://lemon16.app",
-        "https://app.lemon16.app",
-    }
-    
-    // Add allowed origins from environment variable
-    if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {
-        allowOrigins = append(allowOrigins, strings.Split(envOrigins, ",")...)
-    }
-
-    originMap := make(map[string]bool)
-    for _, o := range allowOrigins {
-        originMap[o] = true
-    }
-
-    router.Use(cors.New(cors.Config{
-        AllowOriginFunc: func(origin string) bool {
-            if os.Getenv("GIN_MODE") != "release" {
-                // Allow localhost with any port in development
-                if strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:") {
-                    return true
-                }
-            }
-            return originMap[origin]
-        },
-        AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-        AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept", "X-Requested-With", "X-Request-ID"},
-        ExposeHeaders:    []string{"Content-Length", "Content-Type", "X-Request-ID"},
-        AllowCredentials: true,
-        MaxAge:           12 * time.Hour,
-    }))
 
     // Public routes (no auth required)
     router.POST("/api/signup", handlers.Signup)

@@ -61,6 +61,16 @@ func Signup(c *gin.Context) {
 
 	log.Info().Str("email", req.Email).Msg("Signup attempt")
 
+	// Check if database is available
+	if database.Client == nil {
+		log.Error().Msg("Database unavailable - running in degraded mode")
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "Service temporarily unavailable",
+			"message": "Database connection not available. Please try again later.",
+		})
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -208,6 +218,16 @@ func Login(c *gin.Context) {
 	req.Email = validation.SanitizeEmail(req.Email)
 
 	log.Info().Str("email", req.Email).Msg("Login attempt")
+
+	// Check if database is available
+	if database.Client == nil {
+		log.Error().Msg("Database unavailable - running in degraded mode")
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "Service temporarily unavailable",
+			"message": "Database connection not available. Please try again later.",
+		})
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
