@@ -2,6 +2,7 @@ import "dart:convert";
 import "dart:ui" as ui;
 import "package:http/http.dart" as http;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/api_service.dart';
 import '../services/sound_service.dart';
@@ -83,7 +84,7 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
         });
       }
     } catch (e) {
-      print('Error loading favorites: $e');
+      debugPrint('Error loading favorites: $e');
     }
   }
 

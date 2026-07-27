@@ -1,12 +1,12 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/custom_bottom_nav_bar.dart';
 import '../widgets/app_logo.dart';
-import 'dart:async';
 import '../services/api_service.dart';
 import '../services/websocket_service.dart';
 import '../services/notification_service.dart';
+import '../utils/helpers.dart';
 import 'chat_screen.dart';
 
 class NearbyScreen extends StatefulWidget {
@@ -33,14 +33,13 @@ class _NearbyScreenState extends State<NearbyScreen> {
   Future<void> _loadCurrentUserId() async {
     final token = await ApiService.getToken();
     if (token != null) {
-      final parts = token.split('.');
-      if (parts.length == 3) {
-        try {
-          final payload = json.decode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
+      try {
+        final payload = parseJwtPayload(token);
+        if (payload != null) {
           _currentUserId = payload['userId'] ?? payload['sub'] ?? payload['id'];
-        } catch (e) {
-          print('Error decoding token: $e');
         }
+      } catch (e) {
+        debugPrint('Error decoding token: $e');
       }
     }
   }

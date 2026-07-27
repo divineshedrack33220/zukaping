@@ -13,29 +13,28 @@ import 'screens/favorites_screen.dart';
 import 'screens/nearby_screen.dart';
 import 'screens/view_profile_screen.dart';
 import 'screens/group_join_screen.dart';
-// import 'screens/settings_screen.dart'; // Remove if you don't have this yet
 
 import 'services/notification_service.dart';
 import 'widgets/network_wrapper.dart';
 import 'services/theme_service.dart';
 import 'services/api_service.dart';
+import 'config/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.initialize();
   
-  // Probe and select the most responsive backend server for high availability
   try {
     await ApiService.initActiveUrl();
   } catch (e) {
-    print('⚠️ Failed to initialize active API URL on startup: $e');
+    debugPrint('Failed to initialize active API URL on startup: $e');
   }
   
-  runApp(const Lemon16App());
+  runApp(const ZukapingApp());
 }
 
-class Lemon16App extends StatelessWidget {
-  const Lemon16App({super.key});
+class ZukapingApp extends StatelessWidget {
+  const ZukapingApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -49,144 +48,8 @@ class Lemon16App extends StatelessWidget {
           builder: (context, child) {
             return NetworkWrapper(child: child!);
           },
-          theme: ThemeData(
-            brightness: Brightness.light,
-            primaryColor: const Color(0xFF026AFD),
-            colorScheme: ColorScheme.fromSeed(
-              brightness: Brightness.light,
-              seedColor: const Color(0xFF026AFD),
-              primary: const Color(0xFF026AFD),
-              secondary: const Color(0xFF026AFD),
-            ),
-            scaffoldBackgroundColor: Colors.white,
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              elevation: 0,
-              centerTitle: true,
-            ),
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF026AFD),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(26),
-                ),
-                minimumSize: const Size(double.infinity, 56),
-                elevation: 0,
-              ),
-            ),
-            inputDecorationTheme: InputDecorationTheme(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF8E8E8E)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF026AFD), width: 2),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFFF453A)),
-              ),
-              focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFFF453A), width: 2),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              filled: true,
-              fillColor: Colors.white,
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF026AFD),
-              ),
-            ),
-            floatingActionButtonTheme: const FloatingActionButtonThemeData(
-              backgroundColor: Color(0xFF026AFD),
-              foregroundColor: Colors.black,
-            ),
-            snackBarTheme: SnackBarThemeData(
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              backgroundColor: const Color(0xFF026AFD),
-              contentTextStyle: const TextStyle(color: Colors.white),
-            ),
-          ),
-          darkTheme: ThemeData(
-            brightness: Brightness.dark,
-            primaryColor: const Color(0xFF026AFD),
-            colorScheme: ColorScheme.fromSeed(
-              brightness: Brightness.dark,
-              seedColor: const Color(0xFF026AFD),
-              primary: const Color(0xFF026AFD),
-              secondary: const Color(0xFF026AFD),
-            ),
-            scaffoldBackgroundColor: const Color(0xFF121212),
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Color(0xFF121212),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              centerTitle: true,
-            ),
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF026AFD),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(26),
-                ),
-                minimumSize: const Size(double.infinity, 56),
-                elevation: 0,
-              ),
-            ),
-            inputDecorationTheme: InputDecorationTheme(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF333333)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF026AFD), width: 2),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFFF453A)),
-              ),
-              focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFFF453A), width: 2),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              filled: true,
-              fillColor: const Color(0xFF1E1E1E),
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF026AFD),
-              ),
-            ),
-            floatingActionButtonTheme: const FloatingActionButtonThemeData(
-              backgroundColor: Color(0xFF026AFD),
-              foregroundColor: Colors.white,
-            ),
-            snackBarTheme: SnackBarThemeData(
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              backgroundColor: const Color(0xFF026AFD),
-              contentTextStyle: const TextStyle(color: Colors.white),
-            ),
-          ),
+          theme: buildLightTheme(),
+          darkTheme: buildDarkTheme(),
           initialRoute: '/',
           routes: {
             '/': (context) => const SplashScreen(),

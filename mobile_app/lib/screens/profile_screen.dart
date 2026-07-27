@@ -1,10 +1,10 @@
 import "dart:convert";
 import "package:http/http.dart" as http;
 import "package:flutter/services.dart";
+import 'package:flutter/foundation.dart';
 import "package:shared_preferences/shared_preferences.dart";
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../widgets/custom_bottom_nav_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import '../services/api_service.dart';
@@ -14,6 +14,7 @@ import '../widgets/custom_bottom_nav_bar.dart';
 import '../widgets/app_logo.dart';
 import '../services/websocket_service.dart';
 import '../services/theme_service.dart';
+import '../utils/helpers.dart';
 import 'dart:async';
 
 class ProfileScreen extends StatefulWidget {
@@ -47,10 +48,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadCurrentUserId() async {
     final token = await ApiService.getToken();
     if (token != null) {
-      final parts = token.split('.');
-      if (parts.length == 3) {
-        final payload = json.decode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
-        _currentUserId = payload['id'];
+      try {
+        final payload = parseJwtPayload(token);
+        if (payload != null) {
+          _currentUserId = payload['userId'] ?? payload['sub'] ?? payload['id'];
+        }
+      } catch (e) {
+        debugPrint('Error decoding token: $e');
       }
     }
   }
@@ -79,7 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _isLoading = true);
       }
     } catch (e) {
-      print('Cache load error: $e');
+      debugPrint('Cache load error: $e');
       if (_user == null) setState(() => _isLoading = true);
     }
 
@@ -122,7 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     } catch (e) {
-      print('Error loading referral: $e');
+      debugPrint('Error loading referral: $e');
     }
   }
 

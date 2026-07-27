@@ -91,7 +91,7 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
         _currentUserId = payload['userId'] ?? payload['sub'] ?? payload['id'];
       }
     } catch (e) {
-      print('Error decoding token: $e');
+      debugPrint('Error decoding token: $e');
     }
 
     await Future.wait([
@@ -116,7 +116,7 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      print('Error loading status: $e');
+      debugPrint('Error loading status: $e');
     }
   }
 
@@ -314,7 +314,7 @@ class _ChatsScreenState extends State<ChatsScreen> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      print('Cache load error: $e');
+      debugPrint('Cache load error: $e');
     }
 
     // Network load silently
@@ -1130,7 +1130,7 @@ class _CreateGroupModalState extends State<_CreateGroupModal> {
         throw Exception(response['error'] ?? 'Unknown error from server');
       }
     } catch (e) {
-      print('❌ Failed to create group: $e');
+      debugPrint('❌ Failed to create group: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to create group: $e')));
         setState(() => _isCreating = false);

@@ -238,7 +238,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
         }
       }
     } catch (e) {
-      print('Header error: $e');
+      debugPrint('Header error: $e');
     }
     _subscribeToChatChannel();
   }
@@ -264,7 +264,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver, Ti
         }
       }
     } catch (e) {
-      print('Cache read error: $e');
+      debugPrint('Cache read error: $e');
     }
 
     // Background Network Fetch

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'dart:js' as js;
 
@@ -72,7 +73,7 @@ class SoundServiceImpl {
         })();
       """]);
     } catch (e) {
-      print('Web audio synthesis call failed: $e');
+      debugPrint('Web audio synthesis call failed: $e');
     }
   }
 }

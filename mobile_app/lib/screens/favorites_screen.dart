@@ -2,6 +2,7 @@ import "chat_screen.dart";
 import "dart:convert";
 import "dart:async";
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
@@ -70,7 +71,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
         _currentUserId = payload['userId'] ?? payload['sub'] ?? payload['id'];
       }
     } catch (e) {
-      print('Error decoding token: $e');
+      debugPrint('Error decoding token: $e');
     }
     
     await Future.wait([
@@ -95,7 +96,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
         }
       }
     } catch (e) {
-      print('Cache load error: $e');
+      debugPrint('Cache load error: $e');
     }
 
     // Network load silently
@@ -113,7 +114,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
         await prefs.setString('cached_favorites', jsonEncode(favorites));
       }
     } catch (e) {
-      print('Favorites load error: $e');
+      debugPrint('Favorites load error: $e');
       if (attempt < 3) {
         await Future.delayed(Duration(seconds: 2));
         _loadFavorites(attempt: attempt + 1);
@@ -139,7 +140,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
         }
       }
     } catch (e) {
-      print('Error loading status: $e');
+      debugPrint('Error loading status: $e');
     }
   }
 
@@ -212,7 +213,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
         _filteredFavorites = List.from(_favorites);
       });
     } catch (e) {
-      print('Remove favorite error: $e');
+      debugPrint('Remove favorite error: $e');
       _showToast('Failed to remove favorite');
     }
   }
@@ -232,7 +233,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
         );
       }
     } catch (e) {
-      print('Start chat error: $e');
+      debugPrint('Start chat error: $e');
       _showToast('Failed to open chat');
     }
   }

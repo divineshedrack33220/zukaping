@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/api_service.dart';
 import '../services/websocket_service.dart';
+import '../config/app_config.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? inviteCode;
@@ -26,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final String _baseUrl = ApiService.baseUrl.replaceAll('/api', '');
   
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: '12239007321-kcvn3r3asgef4ic341tnvbn2bpt8i9qg.apps.googleusercontent.com',
+    clientId: AppConfig.googleClientId,
   );
 
   @override
@@ -139,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
           try {
             await ApiService.joinGroupByInviteCode(widget.inviteCode!);
           } catch (e) {
-            print('⚠️ Auto-joining group on login failed: $e');
+            debugPrint('⚠️ Auto-joining group on login failed: $e');
           }
         }
         

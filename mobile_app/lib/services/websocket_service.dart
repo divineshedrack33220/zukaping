@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'api_service.dart';
 
@@ -17,35 +18,35 @@ class WebSocketService {
     final token = await ApiService.getToken();
     if (token == null) return;
     
-    print('🔄 Attempting WebSocket connection to $wsUrl...');
+    debugPrint('🔄 Attempting WebSocket connection to $wsUrl...');
     try {
       _channel = WebSocketChannel.connect(Uri.parse('$wsUrl?token=$token'));
-      print('✅ WebSocket connected successfully!');
+      debugPrint('✅ WebSocket connected successfully!');
       _flushQueue();
       
       _channel!.stream.listen(
         (data) {
           try {
-            print('📥 WebSocket received: $data');
+            debugPrint('📥 WebSocket received: $data');
             final message = jsonDecode(data);
             _controller.add(message);
           } catch (e) {
-            print('❌ Error decoding WebSocket message: $e');
+            debugPrint('❌ Error decoding WebSocket message: $e');
           }
         },
         onDone: () {
-          print('⚠️ WebSocket closed normally. Reconnecting in 5s...');
+          debugPrint('⚠️ WebSocket closed normally. Reconnecting in 5s...');
           _channel = null;
           Future.delayed(const Duration(seconds: 5), connect);
         },
         onError: (error) {
-          print('❌ WebSocket error: $error. Reconnecting in 5s...');
+          debugPrint('❌ WebSocket error: $error. Reconnecting in 5s...');
           _channel = null;
           Future.delayed(const Duration(seconds: 5), connect);
         },
       );
     } catch (e) {
-      print('❌ WebSocket connection error: $e. Reconnecting in 5s...');
+      debugPrint('❌ WebSocket connection error: $e. Reconnecting in 5s...');
       _channel = null;
       Future.delayed(const Duration(seconds: 5), connect);
     }

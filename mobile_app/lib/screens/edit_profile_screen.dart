@@ -179,7 +179,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Navigator.pop(context, true); // Return true to indicate changes
       }
     } catch (e) {
-      print('Profile update error: $e');
+      debugPrint('Profile update error: $e');
       _showToast('Failed to update profile: $e');
     } finally {
       if (mounted) {

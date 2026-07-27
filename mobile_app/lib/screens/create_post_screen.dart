@@ -15,6 +15,7 @@ class CreatePostScreen extends StatefulWidget {
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _contentController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
+  final ValueNotifier<bool> _formValidNotifier = ValueNotifier(false);
   
   String? _selectedCategory;
   int? _selectedDuration;
@@ -34,7 +35,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     {'label': '1 hr', 'value': 60},
     {'label': '2 hrs', 'value': 120},
   ];
-  
+
   bool get _isFormValid {
     return _selectedCategory != null &&
            _selectedDuration != null &&
@@ -45,18 +46,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   void initState() {
     super.initState();
-    _contentController.addListener(() {
-      setState(() {}); // Rebuild to update char count and button state
-    });
-    // Set default category
     _selectedCategory = _categories[0];
     _selectedDuration = _durations[0]['value'] as int?;
+    _contentController.addListener(_updateFormValidity);
+    _updateFormValidity();
   }
 
   @override
   void dispose() {
+    _contentController.removeListener(_updateFormValidity);
     _contentController.dispose();
+    _formValidNotifier.dispose();
     super.dispose();
+  }
+
+  void _updateFormValidity() {
+    _formValidNotifier.value = _isFormValid;
   }
 
   Future<void> _pickImages() async {
@@ -229,12 +234,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   Positioned(
                     bottom: 12,
                     right: 16,
-                    child: Text(
-                      '${_contentController.text.length}/120',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF8E8E8E),
-                      ),
+                    child: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _contentController,
+                      builder: (context, value, _) {
+                        return Text(
+                          '${value.text.length}/120',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF8E8E8E),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -358,38 +368,43 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 40),
 
             // Submit Button
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _isFormValid && !_isPosting ? _submitPost : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF026AFD),
-                  foregroundColor: Colors.black,
-                  disabledBackgroundColor: const Color(0xFF026AFD).withOpacity(0.3),
-                  disabledForegroundColor: Colors.black38,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(26),
-                  ),
-                  elevation: 0,
-                ),
-                child: _isPosting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.black,
-                        ),
-                      )
-                    : const Text(
-                        'Post Request',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
+            ValueListenableBuilder<bool>(
+              valueListenable: _formValidNotifier,
+              builder: (context, isValid, _) {
+                return SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: isValid && !_isPosting ? _submitPost : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF026AFD),
+                      foregroundColor: Colors.black,
+                      disabledBackgroundColor: const Color(0xFF026AFD).withOpacity(0.3),
+                      disabledForegroundColor: Colors.black38,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(26),
                       ),
-              ),
+                      elevation: 0,
+                    ),
+                    child: _isPosting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
+                          )
+                        : const Text(
+                            'Post Request',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 16),

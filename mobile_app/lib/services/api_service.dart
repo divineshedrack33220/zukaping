@@ -49,7 +49,7 @@ class ApiService {
       candidates.addAll(_productionUrls);
     }
 
-    print('🌐 Probing servers for high availability: $candidates');
+    debugPrint('🌐 Probing servers for high availability: $candidates');
 
     for (String url in candidates) {
       try {
@@ -59,16 +59,16 @@ class ApiService {
         
         if (response.statusCode == 200) {
           _activeBaseUrl = url;
-          print('✅ Selected responding API URL: $_activeBaseUrl');
+          debugPrint('✅ Selected responding API URL: $_activeBaseUrl');
           return;
         }
       } catch (e) {
-        print('⚠️ Ping failed for $url (either offline or sleeping): $e');
+        debugPrint('⚠️ Ping failed for $url (either offline or sleeping): $e');
       }
     }
 
     // If none responded within 1.5s, try with a longer timeout on production servers
-    print('⏳ No quick responses. Trying longer pings...');
+    debugPrint('⏳ No quick responses. Trying longer pings...');
     for (String url in _productionUrls) {
       try {
         final response = await http.get(
@@ -77,17 +77,17 @@ class ApiService {
         
         if (response.statusCode == 200) {
           _activeBaseUrl = url;
-          print('✅ Selected responding API URL (longer ping): $_activeBaseUrl');
+          debugPrint('✅ Selected responding API URL (longer ping): $_activeBaseUrl');
           return;
         }
       } catch (e) {
-        print('⚠️ Longer ping failed for $url: $e');
+        debugPrint('⚠️ Longer ping failed for $url: $e');
       }
     }
 
     // Default fallback if all else fails
     _activeBaseUrl = kDebugMode ? _localUrl : _productionUrls.first;
-    print('🌐 Defaulting to API URL: $_activeBaseUrl');
+    debugPrint('🌐 Defaulting to API URL: $_activeBaseUrl');
   }
 
   /// Automatically failover to the other production server if the current one has an issue
@@ -104,7 +104,7 @@ class ApiService {
         _activeBaseUrl = _productionUrls[currentIndex + 1];
       }
     }
-    print('🔄 Failed over to next available server: $_activeBaseUrl');
+    debugPrint('🔄 Failed over to next available server: $_activeBaseUrl');
   }
 
   static Future<String?> getToken() async {
@@ -192,7 +192,7 @@ class ApiService {
       }
       throw Exception('Server error: ${response.statusCode}');
     } catch (e) {
-      print('⚠️ getProfile offline fallback: $e');
+      debugPrint('⚠️ getProfile offline fallback: $e');
       if (e.toString().contains('UNAUTHORIZED')) rethrow;
       final cached = prefs.getString('cached_profile');
       if (cached != null) {
@@ -223,7 +223,7 @@ class ApiService {
         throw Exception(responseData['error'] ?? responseData['message'] ?? 'Failed to update profile');
       }
     } catch (e) {
-      print('API Error in updateProfile: $e - Response: ${response.body}');
+      debugPrint('API Error in updateProfile: $e - Response: ${response.body}');
       throw Exception('Failed to communicate with server: $e');
     }
   }
@@ -243,7 +243,7 @@ class ApiService {
       await prefs.setString('cached_feed', jsonEncode(feedList));
       return feedList;
     } catch (e) {
-      print('⚠️ getFeed offline fallback: $e');
+      debugPrint('⚠️ getFeed offline fallback: $e');
       final cached = prefs.getString('cached_feed');
       if (cached != null) {
         return jsonDecode(cached);
@@ -275,7 +275,7 @@ class ApiService {
       }
       throw Exception('Server error: ${response.statusCode}');
     } catch (e) {
-      print('⚠️ getChats offline fallback: $e');
+      debugPrint('⚠️ getChats offline fallback: $e');
       final cached = prefs.getString('cached_chats');
       if (cached != null) {
         return jsonDecode(cached);
@@ -333,7 +333,7 @@ class ApiService {
       await prefs.setString('cached_messages_$chatId', jsonEncode(messagesList));
       return messagesList;
     } catch (e) {
-      print('⚠️ getMessages offline fallback for chat $chatId: $e');
+      debugPrint('⚠️ getMessages offline fallback for chat $chatId: $e');
       final cached = prefs.getString('cached_messages_$chatId');
       if (cached != null) {
         final decoded = jsonDecode(cached);
@@ -380,7 +380,7 @@ class ApiService {
       }
       throw Exception('Server error: ${response.statusCode}');
     } catch (e) {
-      print('⚠️ getFavorites offline fallback: $e');
+      debugPrint('⚠️ getFavorites offline fallback: $e');
       final cached = prefs.getString('cached_favorites');
       if (cached != null) {
         return jsonDecode(cached);
@@ -435,7 +435,7 @@ class ApiService {
       }
       throw Exception('Server error: ${response.statusCode}');
     } catch (e) {
-      print('⚠️ getNearbyUsers offline fallback: $e');
+      debugPrint('⚠️ getNearbyUsers offline fallback: $e');
       final cached = prefs.getString('cached_nearby_users');
       if (cached != null) {
         final decoded = jsonDecode(cached);
@@ -496,11 +496,11 @@ class ApiService {
         final data = jsonDecode(response.body);
         return data['url'];
       } else {
-        print('Upload failed with status: ${response.statusCode}, body: ${response.body}');
+        debugPrint('Upload failed with status: ${response.statusCode}, body: ${response.body}');
         throw Exception('Upload failed (${response.statusCode})');
       }
     } catch (e) {
-      print('Error uploading image: $e');
+      debugPrint('Error uploading image: $e');
       rethrow;
     }
   }
@@ -528,12 +528,12 @@ class ApiService {
         timeLimit: const Duration(seconds: 4),
       );
     } catch (e) {
-      print('⚠️ Geolocator getCurrentPosition timed out or failed: $e. Trying fallback.');
+      debugPrint('⚠️ Geolocator getCurrentPosition timed out or failed: $e. Trying fallback.');
       // Fallback to getLastKnownPosition if getCurrentPosition hangs or fails
       try {
         return await Geolocator.getLastKnownPosition();
       } catch (err) {
-        print('⚠️ Geolocator getLastKnownPosition fallback failed: $err');
+        debugPrint('⚠️ Geolocator getLastKnownPosition fallback failed: $err');
         return null;
       }
     }

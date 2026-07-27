@@ -49,10 +49,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> with WidgetsBindingObse
     _initializeRoomChat();
     _setupWebSocket();
     
-    _messageController.addListener(() {
-      setState(() {});
-      _handleTyping();
-    });
+    _messageController.addListener(_handleTyping);
   }
 
   @override
