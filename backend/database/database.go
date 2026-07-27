@@ -46,6 +46,9 @@ func ConnectDB() error {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		clientOptions := options.Client().ApplyURI(mongoURI)
+		clientOptions.SetMaxPoolSize(100)
+		clientOptions.SetMinPoolSize(10)
+		clientOptions.SetMaxConnIdleTime(5 * time.Minute)
 		client, err := mongo.Connect(ctx, clientOptions)
 		if err == nil {
 			err = client.Ping(ctx, nil)

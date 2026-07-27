@@ -486,25 +486,6 @@ func GetReferral(c *gin.Context) {
 	})
 }
 
-// TestAuth - Simple endpoint to test authentication
-func TestAuth(c *gin.Context) {
-	userIDStr := c.GetString("userId")
-	
-	if userIDStr == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "Not authenticated",
-			"message": "No user ID in context",
-		})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Authentication successful",
-		"userId":  userIDStr,
-		"time":    time.Now().Unix(),
-	})
-}
-
 // UpdateUserStatus - Update user status (available, busy, offline)
 func UpdateUserStatus(c *gin.Context) {
 	userIDStr := c.GetString("userId")
@@ -602,6 +583,27 @@ func BlockUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User blocked successfully"})
 }
 
+// escapeRegex escapes special regex characters to prevent ReDoS attacks
+func escapeRegex(s string) string {
+	specialChars := []byte(`\.+*?^${}()|[]\\`)
+	result := make([]byte, 0, len(s)*2)
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		escaped := false
+		for _, sc := range specialChars {
+			if c == sc {
+				escaped = true
+				break
+			}
+		}
+		if escaped {
+			result = append(result, '\\')
+		}
+		result = append(result, c)
+	}
+	return string(result)
+}
+
 // SearchUsers - Search for users by name
 func SearchUsers(c *gin.Context) {
 	query := c.Query("q")
@@ -615,9 +617,12 @@ func SearchUsers(c *gin.Context) {
 
 	usersColl := database.Client.Database("coded").Collection("users")
 
+	// Escape special regex characters to prevent ReDoS
+	escapedQuery := escapeRegex(query)
+
 	// Case-insensitive regex search on the name field
 	filter := bson.M{
-		"name": bson.M{"$regex": query, "$options": "i"},
+		"name": bson.M{"$regex": escapedQuery, "$options": "i"},
 	}
 
 	cursor, err := usersColl.Find(ctx, filter)

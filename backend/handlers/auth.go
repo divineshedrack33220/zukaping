@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"net/http"
-	"os"
 	"time"
 
 	"coded/database"
@@ -164,12 +163,7 @@ func Signup(c *gin.Context) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		log.Fatal().Msg("JWT_SECRET not configured")
-	}
-	
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+	tokenString, err := token.SignedString(middleware.GetJWTSecret())
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to generate token")
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -295,12 +289,7 @@ func Login(c *gin.Context) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		log.Fatal().Msg("JWT_SECRET not configured")
-	}
-	
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+	tokenString, err := token.SignedString(middleware.GetJWTSecret())
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to generate token")
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -320,13 +309,5 @@ func Login(c *gin.Context) {
 		"avatar":   user.Avatar,
 		"message":  "Login successful",
 		"expires":  expirationTime.Unix(),
-	})
-}
-
-// Add this test endpoint to verify handlers are working
-func TestHandler(c *gin.Context) {
-	c.JSON(200, gin.H{
-		"message": "Handlers are working correctly",
-		"time":    time.Now().Unix(),
 	})
 }

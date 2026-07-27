@@ -14,10 +14,17 @@ import (
 	"coded/routes"
 	"coded/websocket"
 
+	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
 )
+
+var cloudinaryClient *cloudinary.Cloudinary
+
+func getCloudinaryClient() *cloudinary.Cloudinary {
+	return cloudinaryClient
+}
 
 func validateEnv() {
 	required := []string{
@@ -51,6 +58,17 @@ func main() {
 
 	// Initialize VAPID keys for push notifications
 	handlers.InitVAPIDKeys()
+
+	// Initialize Cloudinary once at startup
+	if cloudinaryURL := os.Getenv("CLOUDINARY_URL"); cloudinaryURL != "" {
+		cld, err := cloudinary.NewFromURL(cloudinaryURL)
+		if err != nil {
+			logger.Logger.Error().Err(err).Msg("Failed to initialize Cloudinary")
+		} else {
+			cloudinaryClient = cld
+			logger.Logger.Info().Msg("Cloudinary initialized successfully")
+		}
+	}
 
 	// ---------------- DB CONNECTION (NON-BLOCKING) ----------------
 	logger.Logger.Info().Msg("🔌 Connecting to MongoDB...")
@@ -159,6 +177,9 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Logger.Error().Err(err).Msg("Forced shutdown")
 	}
+
+	// Gracefully shutdown WebSocket connections
+	wsManager.Shutdown()
 
 	if database.Client != nil {
 		_ = database.Client.Disconnect(ctx)

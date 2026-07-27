@@ -23,6 +23,8 @@ import (
     "golang.org/x/oauth2/google"
 )
 
+const googleTokeninfoURL = "https://oauth2.googleapis.com/tokeninfo"
+
 // Google OAuth Config
 var (
     googleOAuthConfig *oauth2.Config
@@ -147,46 +149,61 @@ func GoogleOAuthCallback(c *gin.Context) {
 
 // Handle Google Sign-In with Credential (Google Identity Services)
 func GoogleAuthWithCredential(c *gin.Context) {
-    fmt.Printf("[%s] 🔐 POST /api/google-auth received\n", time.Now().Format("15:04:05"))
-    
+    log.Printf("POST /api/google-auth received")
+
     var req GoogleAuthRequest
     if err := c.ShouldBindJSON(&req); err != nil {
-        log.Printf("❌ Invalid Google auth request: %v", err)
+        log.Printf("Invalid Google auth request: %v", err)
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
         return
     }
 
-    // Verify the Google credential (in production, you should verify the JWT)
-    // For now, we'll parse the JWT to get user info
-    token, _, err := new(jwt.Parser).ParseUnverified(req.Credential, jwt.MapClaims{})
+    // Verify the credential via Google's tokeninfo endpoint (prevents forged JWTs)
+    resp, err := http.Get(googleTokeninfoURL + "?id_token=" + req.Credential)
     if err != nil {
-        log.Printf("❌ Failed to parse Google credential: %v", err)
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Google credential"})
+        log.Printf("Failed to call Google tokeninfo: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify credential"})
+        return
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        log.Printf("Google tokeninfo returned status %d", resp.StatusCode)
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Google credential"})
         return
     }
 
-    claims, ok := token.Claims.(jwt.MapClaims)
-    if !ok {
-        log.Printf("❌ Invalid Google credential claims")
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Google credential"})
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read tokeninfo response"})
         return
     }
 
-    // Extract user info from claims
+    var tokenInfo struct {
+        Sub     string `json:"sub"`
+        Email   string `json:"email"`
+        Name    string `json:"name"`
+        Picture string `json:"picture"`
+    }
+    if err := json.Unmarshal(body, &tokenInfo); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse tokeninfo response"})
+        return
+    }
+
     googleUser := GoogleUserInfo{
-        ID:      getStringClaim(claims, "sub"),
-        Email:   getStringClaim(claims, "email"),
-        Name:    getStringClaim(claims, "name"),
-        Picture: getStringClaim(claims, "picture"),
+        ID:      tokenInfo.Sub,
+        Email:   tokenInfo.Email,
+        Name:    tokenInfo.Name,
+        Picture: tokenInfo.Picture,
     }
 
     if googleUser.Email == "" {
-        log.Printf("❌ Google credential missing email")
+        log.Printf("Google credential missing email")
         c.JSON(http.StatusBadRequest, gin.H{"error": "Email not provided by Google"})
         return
     }
 
-    log.Printf("✅ Google credential parsed: %s (%s)", googleUser.Email, googleUser.Name)
+    log.Printf("Google credential verified: %s (%s)", googleUser.Email, googleUser.Name)
     handleGoogleUser(c, googleUser, nil)
 }
 
@@ -271,12 +288,7 @@ func handleGoogleUser(c *gin.Context, googleUser GoogleUserInfo, token *oauth2.T
     }
 
     jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-    jwtSecret := os.Getenv("JWT_SECRET")
-    if jwtSecret == "" {
-        jwtSecret = "your-secret-key-change-this-in-production"
-    }
-    
-    tokenString, err := jwtToken.SignedString([]byte(jwtSecret))
+    tokenString, err := jwtToken.SignedString(middleware.GetJWTSecret())
     if err != nil {
         log.Printf("❌ Failed to generate JWT token: %v", err)
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate authentication token"})

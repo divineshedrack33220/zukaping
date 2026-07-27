@@ -264,9 +264,9 @@ func SendMessage(c *gin.Context) {
         "replyToSenderName": req.ReplyToSenderName,
     }
 
-    // Broadcast via WebSocket
+    // Broadcast via WebSocket (only to chat participants for privacy)
     if wsManager != nil {
-        wsManager.BroadcastNewMessage(wsMessage)
+        wsManager.BroadcastChatMessage(message.ChatID.Hex(), wsMessage)
     }
 
     // Send push notification to the other participant(s)

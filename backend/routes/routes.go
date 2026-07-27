@@ -132,16 +132,18 @@ func SetupRouter() *gin.Engine {
         })
     })
 
-    // Public routes (no auth required)
-    router.POST("/api/signup", handlers.Signup)
-    router.POST("/api/login", handlers.Login)
-    router.GET("/api/vapid-public-key", handlers.GetVapidPublicKey)
-    router.GET("/api/groups/invite/:code", handlers.GetGroupInfoByInviteCode)
-    
+    // Public routes (no auth required) — rate limited
+    public := router.Group("/api")
+    public.Use(middleware.RateLimitMiddleware())
+    public.POST("/signup", middleware.SignupRateLimitMiddleware(), handlers.Signup)
+    public.POST("/login", middleware.LoginRateLimitMiddleware(), handlers.Login)
+    public.GET("/vapid-public-key", handlers.GetVapidPublicKey)
+    public.GET("/groups/invite/:code", handlers.GetGroupInfoByInviteCode)
+
     // Google OAuth routes
-    router.GET("/api/google/auth-url", handlers.GetGoogleAuthURL)
-    router.GET("/api/google/callback", handlers.GoogleOAuthCallback)
-    router.POST("/api/google-auth", handlers.GoogleAuthWithCredential)
+    public.GET("/google/auth-url", handlers.GetGoogleAuthURL)
+    public.GET("/google/callback", handlers.GoogleOAuthCallback)
+    public.POST("/google-auth", handlers.GoogleAuthWithCredential)
 
     // Protected routes group
     protected := router.Group("/api")
@@ -154,9 +156,6 @@ func SetupRouter() *gin.Engine {
     protected.GET("/user/:id", handlers.GetUser)
     protected.PUT("/me/status", handlers.UpdateUserStatus)
     protected.POST("/block", handlers.BlockUser)
-
-    // Test endpoint
-    protected.GET("/test-auth", handlers.TestAuth)
 
     // Users
     protected.GET("/users/nearby", handlers.GetNearbyUsers)

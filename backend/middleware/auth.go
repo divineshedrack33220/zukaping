@@ -15,6 +15,14 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+func GetJWTSecret() []byte {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		panic("JWT_SECRET environment variable is not set")
+	}
+	return []byte(secret)
+}
+
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Skip middleware for OPTIONS requests (CORS preflight)
@@ -23,20 +31,15 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Try to get token from Authorization header
+		// Try to get token from Authorization header only (no query param for REST)
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			// Try to get from query parameter
-			token := c.Query("token")
-			if token == "" {
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"error":   "Authentication required",
-					"message": "No authorization token provided",
-				})
-				c.Abort()
-				return
-			}
-			authHeader = "Bearer " + token
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error":   "Authentication required",
+				"message": "No authorization token provided",
+			})
+			c.Abort()
+			return
 		}
 
 		// Check if it's a Bearer token
@@ -59,16 +62,10 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
-			
-			jwtSecret := os.Getenv("JWT_SECRET")
-			if jwtSecret == "" {
-				jwtSecret = "your-secret-key-change-this-in-production"
-			}
-			return []byte(jwtSecret), nil
+			return GetJWTSecret(), nil
 		})
 
 		if err != nil {
-			fmt.Printf("JWT validation error: %v\n", err)
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error":   "Invalid token",
 				"message": "Token validation failed",
@@ -88,7 +85,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 
 		// Token is valid, set userId in context
 		c.Set("userId", claims.UserID)
-		
+
 		// Continue to the next handler
 		c.Next()
 	}
