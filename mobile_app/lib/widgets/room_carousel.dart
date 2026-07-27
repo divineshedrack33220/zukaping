@@ -60,7 +60,7 @@ class _RoomCarouselState extends State<RoomCarousel> {
               children: [
                 const Text('🔥 Public Rooms Discovery'),
                 const SizedBox(width: 4),
-                Icon(Icons.explore_outlined, size: 16, color: const Color(0xFF00AEEF)),
+                Icon(Icons.explore_outlined, size: 16, color: const Color(0xFF026AFD)),
               ],
             ),
           ),
@@ -149,14 +149,14 @@ class _RoomCardState extends State<_RoomCard> with SingleTickerProviderStateMixi
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: isJoined 
-                          ? const Color(0xFF00AEEF) 
+                          ? const Color(0xFF026AFD) 
                           : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
                       width: isJoined ? 2.5 : 1.5,
                     ),
                     boxShadow: isJoined
                         ? [
                             BoxShadow(
-                              color: const Color(0xFF00AEEF).withValues(alpha: 0.2),
+                              color: const Color(0xFF026AFD).withValues(alpha: 0.2),
                               blurRadius: 6,
                               spreadRadius: 1,
                             )
@@ -182,19 +182,19 @@ class _RoomCardState extends State<_RoomCard> with SingleTickerProviderStateMixi
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 1.5,
-                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00AEEF)),
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF026AFD)),
                               ),
                             ),
                           ),
                           errorWidget: (context, url, error) => Container(
-                            color: const Color(0xFF00AEEF).withValues(alpha: 0.1),
+                            color: const Color(0xFF026AFD).withValues(alpha: 0.1),
                             alignment: Alignment.center,
                             child: Text(
                               room.name.isNotEmpty ? room.name[0].toUpperCase() : 'R',
                               style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF00AEEF),
+                                  color: Color(0xFF026AFD),
                                 ),
                             ),
                           ),
@@ -244,7 +244,7 @@ class _RoomCardState extends State<_RoomCard> with SingleTickerProviderStateMixi
                     child: Container(
                       padding: const EdgeInsets.all(1.5),
                       decoration: const BoxDecoration(
-                        color: Color(0xFF00AEEF),
+                        color: Color(0xFF026AFD),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -283,7 +283,7 @@ class _RoomCardState extends State<_RoomCard> with SingleTickerProviderStateMixi
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isJoined ? FontWeight.w700 : FontWeight.w500,
-                color: isJoined ? const Color(0xFF00AEEF) : (isDark ? Colors.white : Colors.black87),
+                color: isJoined ? const Color(0xFF026AFD) : (isDark ? Colors.white : Colors.black87),
                 height: 1.1,
               ),
             ),

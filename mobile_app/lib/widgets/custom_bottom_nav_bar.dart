@@ -135,11 +135,11 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF00AEEF),
+                    color: const Color(0xFF026AFD),
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF00AEEF).withOpacity(0.3),
+                        color: const Color(0xFF026AFD).withOpacity(0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -169,7 +169,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
     bool isProfile = false,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = isActive ? const Color(0xFF00AEEF) : (isDark ? Colors.grey[400]! : const Color(0xFF666666));
+    final color = isActive ? const Color(0xFF026AFD) : (isDark ? Colors.grey[400]! : const Color(0xFF666666));
 
     return Expanded(
       child: InkWell(
@@ -191,7 +191,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isActive ? const Color(0xFF00AEEF) : (isDark ? const Color(0xFF3A3A3C) : Colors.grey[300]!),
+                        color: isActive ? const Color(0xFF026AFD) : (isDark ? const Color(0xFF3A3A3C) : Colors.grey[300]!),
                         width: 2,
                       ),
                     ),
@@ -257,14 +257,14 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
   Widget _buildMonogram(Color color) {
     final initial = _userName.isNotEmpty ? _userName[0].toUpperCase() : '?';
     return Container(
-      color: const Color(0xFF00AEEF).withOpacity(0.15),
+      color: const Color(0xFF026AFD).withOpacity(0.15),
       child: Center(
         child: Text(
           initial,
           style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF00AEEF),
+            color: Color(0xFF026AFD),
           ),
         ),
       ),

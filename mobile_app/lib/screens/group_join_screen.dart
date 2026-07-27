@@ -139,7 +139,7 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
             ElevatedButton(
               onPressed: () => Navigator.pushReplacementNamed(context, '/feed'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00AEEF),
+                backgroundColor: const Color(0xFF026AFD),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               ),
@@ -183,17 +183,17 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF00AEEF).withOpacity(0.1),
+                  color: const Color(0xFF026AFD).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.stars, color: Color(0xFF00AEEF), size: 16),
+                    const Icon(Icons.stars, color: Color(0xFF026AFD), size: 16),
                     const SizedBox(width: 6),
                     const Text(
                       'You are Invited!',
-                      style: TextStyle(color: Color(0xFF00AEEF), fontWeight: FontWeight.bold, fontSize: 13),
+                      style: TextStyle(color: Color(0xFF026AFD), fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                   ],
                 ),
@@ -208,7 +208,7 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
                 child: avatar == null
                     ? Text(
                         name.isNotEmpty ? name[0].toUpperCase() : 'G',
-                        style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFF00AEEF)),
+                        style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFF026AFD)),
                       )
                     : null,
               ),
@@ -241,7 +241,7 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
                 width: 60,
                 height: 3,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF00AEEF).withOpacity(0.3),
+                  color: const Color(0xFF026AFD).withOpacity(0.3),
                   borderRadius: BorderRadius.circular(1.5),
                 ),
               ),
@@ -263,7 +263,7 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
                   child: ElevatedButton(
                     onPressed: _isJoining ? null : _joinGroup,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00AEEF),
+                      backgroundColor: const Color(0xFF026AFD),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),
@@ -291,7 +291,7 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF00AEEF),
+                          backgroundColor: const Color(0xFF026AFD),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           elevation: 0,
                         ),
@@ -315,8 +315,8 @@ class _GroupJoinScreenState extends State<GroupJoinScreen> {
                           );
                         },
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF00AEEF),
-                          side: const BorderSide(color: Color(0xFF00AEEF)),
+                          foregroundColor: const Color(0xFF026AFD),
+                          side: const BorderSide(color: Color(0xFF026AFD)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
                         child: const Text(

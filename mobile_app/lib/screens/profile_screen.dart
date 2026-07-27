@@ -322,7 +322,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: const Color(0xFF00AEEF),
+        backgroundColor: const Color(0xFF026AFD),
       ),
     );
   }
@@ -506,7 +506,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return RefreshIndicator(
       onRefresh: _loadProfile,
-      color: const Color(0xFF00AEEF),
+      color: const Color(0xFF026AFD),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(20),
@@ -523,12 +523,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFF00AEEF),
+                        color: const Color(0xFF026AFD),
                         width: 3,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF00AEEF).withOpacity(0.1),
+                          color: const Color(0xFF026AFD).withOpacity(0.1),
                           blurRadius: 0,
                           spreadRadius: 4,
                         ),
@@ -626,7 +626,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _loadProfile();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00AEEF),
+                      backgroundColor: const Color(0xFF026AFD),
                       foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -707,7 +707,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[50],
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: const Color(0xFF00AEEF).withValues(alpha: 0.3),
+                  color: const Color(0xFF026AFD).withValues(alpha: 0.3),
                   style: BorderStyle.solid,
                   width: 1.5,
                 ),
@@ -717,7 +717,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Icon(
                     Icons.add_a_photo_rounded,
-                    color: Color(0xFF00AEEF),
+                    color: Color(0xFF026AFD),
                     size: 32,
                   ),
                   SizedBox(height: 8),
@@ -726,7 +726,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF00AEEF),
+                      color: Color(0xFF026AFD),
                     ),
                   ),
                 ],
@@ -837,14 +837,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildPlaceholderAvatar() {
     return Container(
-      color: const Color(0xFF00AEEF).withOpacity(0.2),
+      color: const Color(0xFF026AFD).withOpacity(0.2),
       child: Center(
         child: Text(
           _user?.name.isNotEmpty == true ? _user!.name[0].toUpperCase() : '?',
           style: const TextStyle(
             fontSize: 48,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF00AEEF),
+            color: Color(0xFF026AFD),
           ),
         ),
       ),
@@ -932,7 +932,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ListTile(
               leading: Icon(
                 img.isExclusive ? Icons.lock_open_rounded : Icons.lock_rounded,
-                color: const Color(0xFF00AEEF),
+                color: const Color(0xFF026AFD),
               ),
               title: Text(
                 img.isExclusive ? 'Make Public' : 'Make Exclusive',
@@ -1198,13 +1198,13 @@ class _ReferralModal extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: const Color(0xFF00AEEF).withOpacity(0.1),
+              color: const Color(0xFF026AFD).withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.card_giftcard_rounded,
               size: 40,
-              color: Color(0xFF00AEEF),
+              color: Color(0xFF026AFD),
             ),
           ),
           const SizedBox(height: 20),
@@ -1238,14 +1238,14 @@ class _ReferralModal extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF00AEEF), Color(0xFF007BBB)],
+                  colors: [Color(0xFF026AFD), Color(0xFF026AFD)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF00AEEF).withOpacity(0.3),
+                    color: const Color(0xFF026AFD).withOpacity(0.3),
                     blurRadius: 15,
                     offset: const Offset(0, 8),
                   ),
@@ -1291,8 +1291,8 @@ class _ReferralModal extends StatelessWidget {
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF00AEEF),
-                      side: const BorderSide(color: Color(0xFF00AEEF), width: 2),
+                      foregroundColor: const Color(0xFF026AFD),
+                      side: const BorderSide(color: Color(0xFF026AFD), width: 2),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -1310,7 +1310,7 @@ class _ReferralModal extends StatelessWidget {
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00AEEF),
+                      backgroundColor: const Color(0xFF026AFD),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 16),

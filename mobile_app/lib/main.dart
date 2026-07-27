@@ -51,12 +51,12 @@ class Lemon16App extends StatelessWidget {
           },
           theme: ThemeData(
             brightness: Brightness.light,
-            primaryColor: const Color(0xFF00AEEF),
+            primaryColor: const Color(0xFF026AFD),
             colorScheme: ColorScheme.fromSeed(
               brightness: Brightness.light,
-              seedColor: const Color(0xFF00AEEF),
-              primary: const Color(0xFF00AEEF),
-              secondary: const Color(0xFF00AEEF),
+              seedColor: const Color(0xFF026AFD),
+              primary: const Color(0xFF026AFD),
+              secondary: const Color(0xFF026AFD),
             ),
             scaffoldBackgroundColor: Colors.white,
             appBarTheme: const AppBarTheme(
@@ -67,7 +67,7 @@ class Lemon16App extends StatelessWidget {
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00AEEF),
+                backgroundColor: const Color(0xFF026AFD),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(26),
@@ -86,7 +86,7 @@ class Lemon16App extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF00AEEF), width: 2),
+                borderSide: const BorderSide(color: Color(0xFF026AFD), width: 2),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -102,11 +102,11 @@ class Lemon16App extends StatelessWidget {
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF00AEEF),
+                foregroundColor: const Color(0xFF026AFD),
               ),
             ),
             floatingActionButtonTheme: const FloatingActionButtonThemeData(
-              backgroundColor: Color(0xFF00AEEF),
+              backgroundColor: Color(0xFF026AFD),
               foregroundColor: Colors.black,
             ),
             snackBarTheme: SnackBarThemeData(
@@ -114,18 +114,18 @@ class Lemon16App extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              backgroundColor: const Color(0xFF00AEEF),
+              backgroundColor: const Color(0xFF026AFD),
               contentTextStyle: const TextStyle(color: Colors.white),
             ),
           ),
           darkTheme: ThemeData(
             brightness: Brightness.dark,
-            primaryColor: const Color(0xFF00AEEF),
+            primaryColor: const Color(0xFF026AFD),
             colorScheme: ColorScheme.fromSeed(
               brightness: Brightness.dark,
-              seedColor: const Color(0xFF00AEEF),
-              primary: const Color(0xFF00AEEF),
-              secondary: const Color(0xFF00AEEF),
+              seedColor: const Color(0xFF026AFD),
+              primary: const Color(0xFF026AFD),
+              secondary: const Color(0xFF026AFD),
             ),
             scaffoldBackgroundColor: const Color(0xFF121212),
             appBarTheme: const AppBarTheme(
@@ -136,7 +136,7 @@ class Lemon16App extends StatelessWidget {
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00AEEF),
+                backgroundColor: const Color(0xFF026AFD),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(26),
@@ -155,7 +155,7 @@ class Lemon16App extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF00AEEF), width: 2),
+                borderSide: const BorderSide(color: Color(0xFF026AFD), width: 2),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -171,11 +171,11 @@ class Lemon16App extends StatelessWidget {
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF00AEEF),
+                foregroundColor: const Color(0xFF026AFD),
               ),
             ),
             floatingActionButtonTheme: const FloatingActionButtonThemeData(
-              backgroundColor: Color(0xFF00AEEF),
+              backgroundColor: Color(0xFF026AFD),
               foregroundColor: Colors.white,
             ),
             snackBarTheme: SnackBarThemeData(
@@ -183,7 +183,7 @@ class Lemon16App extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              backgroundColor: const Color(0xFF00AEEF),
+              backgroundColor: const Color(0xFF026AFD),
               contentTextStyle: const TextStyle(color: Colors.white),
             ),
           ),

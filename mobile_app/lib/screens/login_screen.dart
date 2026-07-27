@@ -193,12 +193,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // Logo
-                        Container(
-                          width: 100, height: 100,
-                          decoration: const BoxDecoration(color: Color(0xFF00AEEF), shape: BoxShape.circle),
-                          child: Center(
-                            child: Image.asset('assets/logo.png', width: 60, height: 60),
-                          ),
+                        Image.asset(
+                          'assets/logo.png',
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.contain,
                         ),
                         
                         const SizedBox(height: 80),
@@ -272,7 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: ElevatedButton(
                             onPressed: (_isButtonEnabled && !_isLoading) ? _login : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00AEEF),
+                              backgroundColor: const Color(0xFF026AFD),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
                             ),
                             child: _isLoading
@@ -331,7 +330,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             const Text("Don't have an account? "),
                             GestureDetector(
                               onTap: () => Navigator.pushNamed(context, '/signup'),
-                              child: const Text('Sign up', style: TextStyle(color: Color(0xFF00AEEF), fontWeight: FontWeight.w600)),
+                              child: const Text('Sign up', style: TextStyle(color: Color(0xFF026AFD), fontWeight: FontWeight.w600)),
                             ),
                           ],
                         ),
@@ -413,7 +412,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       _performDemoLogin();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00AEEF),
+                      backgroundColor: const Color(0xFF026AFD),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

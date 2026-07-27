@@ -263,7 +263,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: const Color(0xFF00AEEF),
+        backgroundColor: const Color(0xFF026AFD),
       ),
     );
   }
@@ -327,7 +327,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
     Color dotColor;
     switch (status['class']) {
       case 'available':
-        dotColor = const Color(0xFF00AEEF);
+        dotColor = const Color(0xFF026AFD);
         break;
       case 'busy':
         dotColor = const Color(0xFFFFFF00);
@@ -415,7 +415,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
     
     return RefreshIndicator(
       onRefresh: _onRefresh,
-      color: const Color(0xFF00AEEF),
+      color: const Color(0xFF026AFD),
       child: ListView.builder(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -673,7 +673,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF00AEEF).withOpacity(0.1),
+                                color: const Color(0xFF026AFD).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -681,7 +681,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
-                                  color: Color(0xFF00AEEF),
+                                  color: Color(0xFF026AFD),
                                 ),
                               ),
                             ),
@@ -773,14 +773,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
 
   Widget _buildPlaceholderAvatar(String name) {
     return Container(
-      color: const Color(0xFF00AEEF).withOpacity(0.2),
+      color: const Color(0xFF026AFD).withOpacity(0.2),
       child: Center(
         child: Text(
           name.isNotEmpty ? name[0].toUpperCase() : '?',
           style: const TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF00AEEF),
+            color: Color(0xFF026AFD),
           ),
         ),
       ),
@@ -791,7 +791,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
     Color dotColor;
     switch (status) {
       case 'available':
-        dotColor = const Color(0xFF00AEEF);
+        dotColor = const Color(0xFF026AFD);
         break;
       case 'busy':
         dotColor = const Color(0xFFFFFF00);
@@ -809,7 +809,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with SingleTickerProv
         boxShadow: status == 'available'
             ? [
                 BoxShadow(
-                  color: const Color(0xFF00AEEF).withOpacity(0.5),
+                  color: const Color(0xFF026AFD).withOpacity(0.5),
                   blurRadius: 8,
                 ),
               ]

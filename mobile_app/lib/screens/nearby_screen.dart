@@ -168,7 +168,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
                                 icon: Container(
                                   width: 40, 
                                   height: 40, 
-                                  decoration: const BoxDecoration(color: Color(0xFF00AEEF), shape: BoxShape.circle), 
+                                  decoration: const BoxDecoration(color: Color(0xFF026AFD), shape: BoxShape.circle), 
                                   child: const Icon(Icons.chat_bubble_outline, color: Colors.black, size: 20)
                                 ),
                                 onPressed: () async {
@@ -202,7 +202,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: const Color(0xFF00AEEF),
+        backgroundColor: const Color(0xFF026AFD),
       ),
     );
   }
@@ -257,14 +257,14 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   Widget _buildPlaceholderAvatar(String name) {
     return Container(
-      color: const Color(0xFF00AEEF).withOpacity(0.2),
+      color: const Color(0xFF026AFD).withOpacity(0.2),
       child: Center(
         child: Text(
           name.isNotEmpty ? name[0].toUpperCase() : '?',
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF00AEEF),
+            color: Color(0xFF026AFD),
           ),
         ),
       ),

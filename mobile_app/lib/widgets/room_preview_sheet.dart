@@ -123,7 +123,7 @@ class _RoomPreviewSheetState extends State<RoomPreviewSheet> {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 40),
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00AEEF)),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF026AFD)),
               ),
             )
           else if (_error != null)
@@ -150,11 +150,11 @@ class _RoomPreviewSheetState extends State<RoomPreviewSheet> {
                     imageUrl: _detailedRoom.avatarUrl,
                     fit: BoxFit.cover,
                     errorWidget: (context, url, error) => Container(
-                      color: const Color(0xFF00AEEF).withValues(alpha: 0.1),
+                      color: const Color(0xFF026AFD).withValues(alpha: 0.1),
                       alignment: Alignment.center,
                       child: Text(
                         _detailedRoom.name[0].toUpperCase(),
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF00AEEF)),
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF026AFD)),
                       ),
                     ),
                   ),
@@ -244,10 +244,10 @@ class _RoomPreviewSheetState extends State<RoomPreviewSheet> {
                       margin: const EdgeInsets.only(right: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF00AEEF).withValues(alpha: 0.06),
+                        color: const Color(0xFF026AFD).withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0xFF00AEEF).withValues(alpha: 0.15),
+                          color: const Color(0xFF026AFD).withValues(alpha: 0.15),
                           width: 0.5,
                         ),
                       ),
@@ -256,7 +256,7 @@ class _RoomPreviewSheetState extends State<RoomPreviewSheet> {
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF00AEEF),
+                          color: Color(0xFF026AFD),
                         ),
                       ),
                     );
@@ -371,7 +371,7 @@ class _RoomPreviewSheetState extends State<RoomPreviewSheet> {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00AEEF),
+                        backgroundColor: const Color(0xFF026AFD),
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -389,7 +389,7 @@ class _RoomPreviewSheetState extends State<RoomPreviewSheet> {
                     ElevatedButton(
                       onPressed: isFull ? null : _handleJoin,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isFull ? Colors.grey : const Color(0xFF00AEEF),
+                        backgroundColor: isFull ? Colors.grey : const Color(0xFF026AFD),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,

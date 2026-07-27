@@ -363,11 +363,11 @@ class _RoomChatScreenState extends State<RoomChatScreen> with WidgetsBindingObse
                 child: _roomAvatar != null
                     ? CachedNetworkImage(imageUrl: _roomAvatar!, fit: BoxFit.cover)
                     : Container(
-                        color: const Color(0xFF00AEEF).withValues(alpha: 0.1),
+                        color: const Color(0xFF026AFD).withValues(alpha: 0.1),
                         alignment: Alignment.center,
                         child: Text(
                           _roomName.isNotEmpty ? _roomName[0].toUpperCase() : 'R',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00AEEF)),
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF026AFD)),
                         ),
                       ),
               ),
@@ -442,7 +442,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> with WidgetsBindingObse
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: const Color(0xFF00AEEF).withValues(alpha: 0.04),
+              color: const Color(0xFF026AFD).withValues(alpha: 0.04),
               child: Text(
                 '💡 Info: $_roomDescription',
                 style: const TextStyle(fontSize: 12, color: Colors.black54, height: 1.2),
@@ -456,7 +456,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> with WidgetsBindingObse
             child: _isLoading
                 ? const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00AEEF)),
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF026AFD)),
                     ),
                   )
                 : _messages.isEmpty
@@ -559,7 +559,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> with WidgetsBindingObse
         child: Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.photo_library_outlined, color: Color(0xFF00AEEF)),
+              icon: const Icon(Icons.photo_library_outlined, color: Color(0xFF026AFD)),
               onPressed: _sendImage,
             ),
             Expanded(
@@ -587,7 +587,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> with WidgetsBindingObse
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: _messageController.text.trim().isNotEmpty
-                      ? const Color(0xFF00AEEF)
+                      ? const Color(0xFF026AFD)
                       : (isDark ? const Color(0xFF2C2C2E) : Colors.grey.shade200),
                   shape: BoxShape.circle,
                 ),
@@ -638,11 +638,11 @@ class _RoomMessageBubble extends StatelessWidget {
                 child: senderAvatar != null
                     ? CachedNetworkImage(imageUrl: senderAvatar, fit: BoxFit.cover)
                     : Container(
-                        color: const Color(0xFF00AEEF).withValues(alpha: 0.1),
+                        color: const Color(0xFF026AFD).withValues(alpha: 0.1),
                         alignment: Alignment.center,
                         child: Text(
                           senderName.isNotEmpty ? senderName[0].toUpperCase() : '?',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF00AEEF)),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF026AFD)),
                         ),
                       ),
               ),
@@ -670,7 +670,7 @@ class _RoomMessageBubble extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelf ? const Color(0xFF00AEEF) : (isDark ? const Color(0xFF1C1C1E) : Colors.grey.shade100),
+                    color: isSelf ? const Color(0xFF026AFD) : (isDark ? const Color(0xFF1C1C1E) : Colors.grey.shade100),
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
                       topRight: const Radius.circular(16),
@@ -705,11 +705,11 @@ class _RoomMessageBubble extends StatelessWidget {
                 child: senderAvatar != null
                     ? CachedNetworkImage(imageUrl: senderAvatar, fit: BoxFit.cover)
                     : Container(
-                        color: const Color(0xFF00AEEF).withValues(alpha: 0.1),
+                        color: const Color(0xFF026AFD).withValues(alpha: 0.1),
                         alignment: Alignment.center,
                         child: Text(
                           senderName.isNotEmpty ? senderName[0].toUpperCase() : '?',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF00AEEF)),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF026AFD)),
                         ),
                       ),
               ),

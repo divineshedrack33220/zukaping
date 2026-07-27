@@ -201,33 +201,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Widget _buildLogo() {
-    return Container(
-      width: 140,
-      height: 140,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Blue circle background
-          Container(
-            width: 120,
-            height: 120,
-            decoration: const BoxDecoration(
-              color: Color(0xFF00AEEF),
-              shape: BoxShape.circle,
-            ),
-          ),
-          // Logo image
-          Image.asset(
-            'assets/logo.png',
-            width: 70,
-            height: 70,
-            fit: BoxFit.contain,
-          ),
-        ],
-      ),
+    return Image.asset(
+      'assets/logo.png',
+      width: 120,
+      height: 120,
+      fit: BoxFit.contain,
     );
   }
 
@@ -251,7 +229,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               text: '${words[index]} ',
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF00AEEF),
+                color: Color(0xFF026AFD),
               ),
             );
           } else {
@@ -282,7 +260,7 @@ class _LoaderPainter extends CustomPainter {
     
     // First ring
     final paint1 = Paint()
-      ..color = const Color(0xFF00AEEF)
+      ..color = const Color(0xFF026AFD)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
     
@@ -290,7 +268,7 @@ class _LoaderPainter extends CustomPainter {
     
     // Second ring
     final paint2 = Paint()
-      ..color = const Color(0xFF00AEEF).withOpacity(0.5)
+      ..color = const Color(0xFF026AFD).withOpacity(0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
     
@@ -338,7 +316,7 @@ class _SimpleLoaderState extends State<_SimpleLoader> with SingleTickerProviderS
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: const Color(0xFF00AEEF),
+                color: const Color(0xFF026AFD),
                 width: 2,
               ),
             ),
