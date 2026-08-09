@@ -1,7 +1,9 @@
 package routes
 
 import (
-    _ "embed"
+    "embed"
+    "io/fs"
+    "net/http"
     "os"
     "strings"
     "time"
@@ -17,6 +19,17 @@ import (
 
 //go:embed index.html
 var landingPageHTML string
+
+//go:embed admin/index.html admin/admin.css admin/admin.js
+var adminFS embed.FS
+
+func mustRead(fsys embed.FS, path string) []byte {
+    b, err := fs.ReadFile(fsys, path)
+    if err != nil {
+        return []byte("resource not found")
+    }
+    return b
+}
 
 func SetupRouter() *gin.Engine {
     router := gin.New()
@@ -145,6 +158,9 @@ func SetupRouter() *gin.Engine {
     public.GET("/google/callback", handlers.GoogleOAuthCallback)
     public.POST("/google-auth", handlers.GoogleAuthWithCredential)
 
+    // Admin login (public but rate limited)
+    public.POST("/admin/login", middleware.AdminLoginRateLimitMiddleware(), handlers.AdminLogin)
+
     // Protected routes group
     protected := router.Group("/api")
     protected.Use(middleware.JWTAuthMiddleware())
@@ -215,6 +231,61 @@ func SetupRouter() *gin.Engine {
     protected.GET("/rooms/:id", handlers.GetRoomDetails)
     protected.POST("/rooms/:id/join", handlers.JoinRoom)
     protected.DELETE("/rooms/:id/leave", handlers.LeaveRoom)
+
+    // -------- ADMIN API --------
+    admin := router.Group("/api/admin")
+    admin.Use(middleware.JWTAuthMiddleware())
+    admin.Use(middleware.AdminAuthMiddleware())
+
+    // Audit log
+    admin.GET("/audit-logs", handlers.AdminGetAuditLogs)
+
+    // Statistics & analytics
+    admin.GET("/stats/overview", handlers.AdminGetOverview)
+    admin.GET("/stats/trends", handlers.AdminGetTrends)
+
+    // User management
+    admin.GET("/users", handlers.AdminListUsers)
+    admin.GET("/users/:id", handlers.AdminGetUser)
+    admin.PATCH("/users/:id/status", handlers.AdminUpdateUserStatus)
+    admin.PATCH("/users/:id/role", handlers.AdminUpdateUserRole)
+    admin.DELETE("/users/:id", handlers.AdminDeleteUser)
+
+    // Content moderation
+    admin.GET("/posts", handlers.AdminListPosts)
+    admin.DELETE("/posts/:id", handlers.AdminDeletePost)
+    admin.GET("/messages", handlers.AdminListMessages)
+    admin.DELETE("/messages/:id", handlers.AdminDeleteMessage)
+    admin.GET("/chats", handlers.AdminListChats)
+    admin.GET("/chats/:id", handlers.AdminGetChat)
+    admin.DELETE("/chats/:id", handlers.AdminDeleteChat)
+    admin.GET("/rooms", handlers.AdminListRooms)
+
+    // Engagement & commerce
+    admin.GET("/favorites", handlers.AdminListFavorites)
+    admin.GET("/purchases", handlers.AdminListPurchases)
+
+    // Serve the admin dashboard SPA
+    adminSub, err := fs.Sub(adminFS, "admin")
+    if err == nil {
+        adminHandler := http.StripPrefix("/admin", http.FileServer(http.FS(adminSub)))
+        router.GET("/admin", func(c *gin.Context) {
+            c.Redirect(302, "/admin/")
+        })
+        router.GET("/admin/*filepath", func(c *gin.Context) {
+            // SPA: serve index.html for hash-routed paths
+            p := c.Param("filepath")
+            if p == "/" || p == "" {
+                c.Data(200, "text/html; charset=utf-8", mustRead(adminFS, "admin/index.html"))
+                return
+            }
+            if strings.HasSuffix(p, ".css") || strings.HasSuffix(p, ".js") {
+                adminHandler.ServeHTTP(c.Writer, c.Request)
+                return
+            }
+            c.Data(200, "text/html; charset=utf-8", mustRead(adminFS, "admin/index.html"))
+        })
+    }
 
     // Add a catch-all for undefined API routes
     router.NoRoute(func(c *gin.Context) {

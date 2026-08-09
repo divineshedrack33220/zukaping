@@ -24,6 +24,10 @@ type User struct {
 	AuthProvider string             `bson:"authProvider" json:"authProvider"`
 	GoogleID     *string            `bson:"googleId,omitempty" json:"-"`
 	CreatedAt    int64              `bson:"createdAt" json:"createdAt"`
+
+	// Admin
+	Role        string `bson:"role,omitempty" json:"role"`               // "user" (default) or "admin"
+	IsSuspended bool   `bson:"isSuspended,omitempty" json:"isSuspended"` // blocked from the app
 	
 	// Profile fields
 	Username     string   `bson:"username" json:"username"`

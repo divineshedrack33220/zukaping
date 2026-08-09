@@ -1,4 +1,4 @@
-package com.example.lemon16_mobile
+package com.zukaping.app
 
 import io.flutter.embedding.android.FlutterActivity
 

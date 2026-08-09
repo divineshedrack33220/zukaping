@@ -7,10 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"coded/models"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -83,6 +86,85 @@ func GetCollection(collectionName string) *mongo.Collection {
 	return DB.Collection(collectionName)
 }
 
+// EnsureAdminUser bootstraps the first admin account from environment variables.
+// ADMIN_EMAIL and ADMIN_PASSWORD must be set. Existing matching users are promoted;
+// otherwise a new admin user is created.
+func EnsureAdminUser() {
+	adminEmail := strings.TrimSpace(os.Getenv("ADMIN_EMAIL"))
+	adminPassword := os.Getenv("ADMIN_PASSWORD")
+
+	if adminEmail == "" || adminPassword == "" {
+		log.Println("ℹ️ ADMIN_EMAIL/ADMIN_PASSWORD not set - skipping admin bootstrap")
+		return
+	}
+
+	if DB == nil {
+		log.Println("⚠️ Cannot bootstrap admin: database not connected")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	usersColl := DB.Collection("users")
+
+	var existing models.User
+	err := usersColl.FindOne(ctx, bson.M{"email": adminEmail}).Decode(&existing)
+
+	if err == nil {
+		// Promote existing user to admin.
+		_, uerr := usersColl.UpdateOne(ctx, bson.M{"_id": existing.ID}, bson.M{
+			"$set": bson.M{"role": "admin", "isSuspended": false},
+		})
+		if uerr != nil {
+			log.Printf("❌ Failed to promote admin: %v", uerr)
+			return
+		}
+		log.Printf("✅ Promoted existing user to admin: %s", adminEmail)
+		return
+	}
+
+	if err != mongo.ErrNoDocuments {
+		log.Printf("⚠️ Failed to check admin existence: %v", err)
+		return
+	}
+
+	// Create a new admin user.
+	hashed, herr := bcrypt.GenerateFromPassword([]byte(adminPassword), 12)
+	if herr != nil {
+		log.Printf("❌ Failed to hash admin password: %v", herr)
+		return
+	}
+	hashedStr := string(hashed)
+
+	admin := models.User{
+		ID:           primitive.NewObjectID(),
+		Email:        adminEmail,
+		PasswordHash: &hashedStr,
+		AuthProvider: "email",
+		Role:         "admin",
+		IsSuspended:  false,
+		CreatedAt:    time.Now().Unix(),
+		LastSeen:     time.Now().Unix(),
+		Username:     "admin_" + primitive.NewObjectID().Hex()[:8],
+		Name:         "Administrator",
+		Avatar:       "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png",
+		Bio:          "",
+		Gender:       "",
+		InterestedIn: []string{},
+		Photos:       []string{},
+		Status:       "offline",
+		BirthDate:    0,
+	}
+
+	if _, ierr := usersColl.InsertOne(ctx, admin); ierr != nil {
+		log.Printf("❌ Failed to create admin user: %v", ierr)
+		return
+	}
+
+	log.Printf("✅ Admin account created: %s", adminEmail)
+}
+
 func CreateIndexes() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -103,6 +185,15 @@ func CreateIndexes() {
 		},
 		{
 			Keys: bson.D{{Key: "lastSeen", Value: -1}},
+		},
+		{
+			Keys: bson.D{{Key: "role", Value: 1}},
+		},
+		{
+			Keys: bson.D{{Key: "isSuspended", Value: 1}},
+		},
+		{
+			Keys: bson.D{{Key: "createdAt", Value: -1}},
 		},
 	}
 
@@ -221,6 +312,23 @@ func CreateIndexes() {
 	}
 	if _, err := purchasesColl.Indexes().CreateMany(ctx, purchasesIndexes); err != nil {
 		log.Printf("Error creating content purchases indexes: %v", err)
+	}
+
+	// Admin audit logs indexes
+	auditColl := DB.Collection("admin_audit_logs")
+	auditIndexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{{Key: "adminId", Value: 1}},
+		},
+		{
+			Keys: bson.D{{Key: "createdAt", Value: -1}},
+		},
+		{
+			Keys: bson.D{{Key: "action", Value: 1}},
+		},
+	}
+	if _, err := auditColl.Indexes().CreateMany(ctx, auditIndexes); err != nil {
+		log.Printf("Error creating admin audit log indexes: %v", err)
 	}
 
 	log.Println("Database indexes created successfully")

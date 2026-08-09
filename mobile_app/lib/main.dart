@@ -14,23 +14,36 @@ import 'screens/nearby_screen.dart';
 import 'screens/view_profile_screen.dart';
 import 'screens/group_join_screen.dart';
 
+import 'dart:async';
+
 import 'services/notification_service.dart';
 import 'widgets/network_wrapper.dart';
 import 'services/theme_service.dart';
 import 'services/api_service.dart';
+import 'services/crash_reporter.dart';
 import 'config/app_theme.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService.initialize();
-  
-  try {
-    await ApiService.initActiveUrl();
-  } catch (e) {
-    debugPrint('Failed to initialize active API URL on startup: $e');
-  }
-  
-  runApp(const ZukapingApp());
+  CrashReporter.install();
+
+  runZonedGuarded(() async {
+    try {
+      await NotificationService.initialize();
+    } catch (e) {
+      debugPrint('Failed to initialize notifications on startup: $e');
+    }
+
+    try {
+      await ApiService.initActiveUrl();
+    } catch (e) {
+      debugPrint('Failed to initialize active API URL on startup: $e');
+    }
+
+    runApp(const ZukapingApp());
+  }, (Object error, StackTrace stack) {
+    CrashReporter.record(error, stack);
+  });
 }
 
 class ZukapingApp extends StatelessWidget {
@@ -46,7 +59,31 @@ class ZukapingApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           themeMode: currentMode,
           builder: (context, child) {
-            return NetworkWrapper(child: child!);
+            return ValueListenableBuilder<List<String>>(
+              valueListenable: CrashReporter.errors,
+              builder: (context, errors, _) {
+                final wrapped = NetworkWrapper(child: child!);
+                if (errors.isEmpty) return wrapped;
+                return Stack(
+                  children: [
+                    wrapped,
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        color: const Color(0xFFFF1744),
+                        padding: const EdgeInsets.all(12),
+                        child: Text(
+                          errors.join('\n\n'),
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
           },
           theme: buildLightTheme(),
           darkTheme: buildDarkTheme(),

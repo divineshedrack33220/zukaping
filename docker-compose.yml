@@ -32,6 +32,8 @@ services:
       - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
       - VAPID_PUBLIC_KEY=
       - VAPID_PRIVATE_KEY=
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     depends_on:
       mongodb:
         condition: service_healthy

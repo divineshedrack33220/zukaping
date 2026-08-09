@@ -108,6 +108,9 @@ func main() {
 
 		// Start background room inactivity cleanup worker (7 days inactivity auto-leave)
 		handlers.StartAutoLeaveWorker()
+
+		// Bootstrap the first admin account from environment variables
+		database.EnsureAdminUser()
 	} else {
 		logger.Logger.Warn().Msg("Running WITHOUT MongoDB (degraded mode)")
 	}

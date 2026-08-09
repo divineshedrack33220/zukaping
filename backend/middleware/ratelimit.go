@@ -56,6 +56,7 @@ var (
     ipLimiter        = NewIPRateLimiter(60, time.Minute)
     loginLimiter     = NewIPRateLimiter(10, time.Minute)
     signupLimiter    = NewIPRateLimiter(5, time.Minute)
+    adminLoginLimiter = NewIPRateLimiter(5, time.Minute)
 )
 
 func RateLimitMiddleware() gin.HandlerFunc {
@@ -85,14 +86,27 @@ func LoginRateLimitMiddleware() gin.HandlerFunc {
 }
 
 func SignupRateLimitMiddleware() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        ip := c.ClientIP()
-        if !signupLimiter.Allow(ip) {
-            metrics.IncRateLimitExceeded()
-            c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many signup attempts, please try again later"})
-            c.Abort()
-            return
-        }
-        c.Next()
-    }
+	return func(c *gin.Context) {
+		ip := c.ClientIP()
+		if !signupLimiter.Allow(ip) {
+			metrics.IncRateLimitExceeded()
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many signup attempts, please try again later"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func AdminLoginRateLimitMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := c.ClientIP()
+		if !adminLoginLimiter.Allow(ip) {
+			metrics.IncRateLimitExceeded()
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many login attempts, please try again later"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }
