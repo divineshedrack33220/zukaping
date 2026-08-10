@@ -64,7 +64,9 @@ func AdminListPosts(c *gin.Context) {
 	postsColl := database.DB.Collection("posts")
 
 	total, _ := postsColl.CountDocuments(ctx, filter)
-	cursor, err := postsColl.Find(ctx, filter, options.Find().SetSort(bson.M{"createdAt": -1}).SetSkip(int64(skip)).SetLimit(int64(limit)))
+	cursor, err := postsColl.Find(ctx, filter, options.Find().SetSort(sortSpec(c, map[string][]string{
+		"createdAt": {"createdAt"},
+	}, bson.D{{Key: "createdAt", Value: -1}})).SetSkip(int64(skip)).SetLimit(int64(limit)))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch posts"})
 		return
@@ -160,7 +162,9 @@ func AdminListMessages(c *gin.Context) {
 	messagesColl := database.DB.Collection("messages")
 
 	total, _ := messagesColl.CountDocuments(ctx, filter)
-	cursor, err := messagesColl.Find(ctx, filter, options.Find().SetSort(bson.M{"createdAt": -1}).SetSkip(int64(skip)).SetLimit(int64(limit)))
+	cursor, err := messagesColl.Find(ctx, filter, options.Find().SetSort(sortSpec(c, map[string][]string{
+		"createdAt": {"createdAt"},
+	}, bson.D{{Key: "createdAt", Value: -1}})).SetSkip(int64(skip)).SetLimit(int64(limit)))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
 		return
@@ -242,7 +246,10 @@ func AdminListChats(c *gin.Context) {
 	chatsColl := database.DB.Collection("chats")
 
 	total, _ := chatsColl.CountDocuments(ctx, bson.M{})
-	cursor, err := chatsColl.Find(ctx, bson.M{}, options.Find().SetSort(bson.M{"lastMessageAt": -1}).SetSkip(int64(skip)).SetLimit(int64(limit)))
+	cursor, err := chatsColl.Find(ctx, bson.M{}, options.Find().SetSort(sortSpec(c, map[string][]string{
+		"lastMessageAt": {"lastMessageAt"},
+		"createdAt":     {"createdAt"},
+	}, bson.D{{Key: "lastMessageAt", Value: -1}})).SetSkip(int64(skip)).SetLimit(int64(limit)))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch chats"})
 		return
@@ -404,8 +411,23 @@ func AdminListRooms(c *gin.Context) {
 
 	roomsColl := database.DB.Collection("rooms")
 
-	total, _ := roomsColl.CountDocuments(ctx, bson.M{})
-	cursor, err := roomsColl.Find(ctx, bson.M{}, options.Find().SetSort(bson.M{"current_members": -1}).SetSkip(int64(skip)).SetLimit(int64(limit)))
+	filter := bson.M{}
+	if q := c.Query("search"); q != "" {
+		rx := bson.M{"$regex": escapeRegex(q), "$options": "i"}
+		filter["$or"] = bson.A{
+			bson.M{"name": rx},
+			bson.M{"description": rx},
+			bson.M{"category": rx},
+			bson.M{"tags": rx},
+		}
+	}
+
+	total, _ := roomsColl.CountDocuments(ctx, filter)
+	cursor, err := roomsColl.Find(ctx, filter, options.Find().SetSort(sortSpec(c, map[string][]string{
+		"name":           {"name"},
+		"current_members": {"current_members"},
+		"createdAt":      {"createdAt"},
+	}, bson.D{{Key: "current_members", Value: -1}})).SetSkip(int64(skip)).SetLimit(int64(limit)))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch rooms"})
 		return
@@ -451,7 +473,9 @@ func AdminListFavorites(c *gin.Context) {
 	favoritesColl := database.DB.Collection("favorites")
 
 	total, _ := favoritesColl.CountDocuments(ctx, bson.M{})
-	cursor, err := favoritesColl.Find(ctx, bson.M{}, options.Find().SetSort(bson.M{"createdAt": -1}).SetSkip(int64(skip)).SetLimit(int64(limit)))
+	cursor, err := favoritesColl.Find(ctx, bson.M{}, options.Find().SetSort(sortSpec(c, map[string][]string{
+		"createdAt": {"createdAt"},
+	}, bson.D{{Key: "createdAt", Value: -1}})).SetSkip(int64(skip)).SetLimit(int64(limit)))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch favorites"})
 		return
@@ -505,7 +529,11 @@ func AdminListPurchases(c *gin.Context) {
 	}
 
 	total, _ := purchasesColl.CountDocuments(ctx, filter)
-	cursor, err := purchasesColl.Find(ctx, filter, options.Find().SetSort(bson.M{"created_at": -1}).SetSkip(int64(skip)).SetLimit(int64(limit)))
+	cursor, err := purchasesColl.Find(ctx, filter, options.Find().SetSort(sortSpec(c, map[string][]string{
+		"created_at": {"created_at"},
+		"price":      {"price"},
+		"status":     {"status"},
+	}, bson.D{{Key: "created_at", Value: -1}})).SetSkip(int64(skip)).SetLimit(int64(limit)))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch purchases"})
 		return
@@ -551,4 +579,22 @@ func parsePagingParams(c *gin.Context) (int, int) {
 		skip = s
 	}
 	return limit, skip
+}
+
+// sortSpec resolves a sort query (sort + optional order) against an allowlist of
+// mongo field paths. Unknown keys fall back to the provided default sort.
+func sortSpec(c *gin.Context, allowed map[string][]string, def bson.D) bson.D {
+	fields, ok := allowed[c.Query("sort")]
+	if !ok {
+		return def
+	}
+	dir := int64(-1)
+	if c.Query("order") == "asc" {
+		dir = 1
+	}
+	out := make(bson.D, 0, len(fields))
+	for _, f := range fields {
+		out = append(out, bson.E{Key: f, Value: dir})
+	}
+	return out
 }

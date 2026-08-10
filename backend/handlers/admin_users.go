@@ -93,12 +93,16 @@ func AdminListUsers(c *gin.Context) {
 		filter = bson.M{"$and": conditions}
 	}
 
-	sort := bson.M{"createdAt": -1}
+	dir := int64(-1)
+	if c.Query("order") == "asc" {
+		dir = 1
+	}
+	sort := bson.M{"createdAt": dir}
 	switch c.Query("sort") {
 	case "lastSeen":
-		sort = bson.M{"lastSeen": -1}
+		sort = bson.M{"lastSeen": dir}
 	case "username":
-		sort = bson.M{"username": 1}
+		sort = bson.M{"username": dir}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

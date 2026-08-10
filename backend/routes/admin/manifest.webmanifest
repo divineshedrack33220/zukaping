@@ -1,0 +1,43 @@
+{
+  "name": "ZukaPing Admin",
+  "short_name": "ZukaPing Admin",
+  "description": "Admin panel for the ZukaPing platform",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "display_override": ["window-controls"],
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "background_color": "#0f172a",
+  "theme_color": "#026afd",
+  "icons": [
+    {
+      "src": "/admin/icons/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "apple-touch-icon"
+    },
+    {
+      "src": "/admin/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/admin/icons/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/admin/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/admin/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

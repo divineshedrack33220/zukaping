@@ -191,6 +191,86 @@ func SendPushNotification(userID primitive.ObjectID, title, body, icon string) {
     }()
 }
 
+// BroadcastPushNotification sends a push notification to every subscribed user.
+func BroadcastPushNotification(title, body string) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Panic in broadcast push notification: %v", r)
+			}
+		}()
+
+		if database.Client == nil {
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		subsColl := database.Client.Database("coded").Collection("subscriptions")
+
+		cursor, err := subsColl.Find(ctx, bson.M{})
+		if err != nil {
+			log.Printf("Failed to list subscriptions for broadcast: %v", err)
+			return
+		}
+		defer cursor.Close(ctx)
+
+		var subs []PushSubscription
+		if err := cursor.All(ctx, &subs); err != nil {
+			log.Printf("Failed to decode subscriptions for broadcast: %v", err)
+			return
+		}
+
+		payload := map[string]interface{}{
+			"title": title,
+			"body":  body,
+			"icon":  "",
+			"data": map[string]interface{}{
+				"url":       "/",
+				"timestamp": time.Now().Unix(),
+			},
+		}
+		payloadBytes, err := json.Marshal(payload)
+		if err != nil {
+			return
+		}
+
+		sent, expired := 0, 0
+		for _, sub := range subs {
+			if sub.Endpoint == "" {
+				continue
+			}
+			webpushSub := &webpush.Subscription{
+				Endpoint: sub.Endpoint,
+				Keys: webpush.Keys{
+					P256dh: sub.Keys.P256dh,
+					Auth:   sub.Keys.Auth,
+				},
+			}
+
+			resp, err := webpush.SendNotification(payloadBytes, webpushSub, &webpush.Options{
+				Subscriber:      "mailto:admin@coded.com",
+				VAPIDPrivateKey: vapidPrivateKey,
+				TTL:             60,
+			})
+			if err != nil {
+				if resp != nil && resp.StatusCode == 410 {
+					expired++
+					_, _ = subsColl.DeleteOne(ctx, bson.M{"_id": sub.ID})
+				}
+				continue
+			}
+			if resp != nil {
+				resp.Body.Close()
+			}
+			sent++
+		}
+
+		log.Printf("Broadcast push complete: %d sent, %d expired", sent, expired)
+	}()
+}
+
 // SendMessagePush sends push notification for new messages
 func SendMessagePush(senderID, receiverID primitive.ObjectID, messageContent string, senderName string) {
     if senderName == "" {

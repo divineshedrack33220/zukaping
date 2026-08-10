@@ -331,6 +331,31 @@ func CreateIndexes() {
 		log.Printf("Error creating admin audit log indexes: %v", err)
 	}
 
+	// Reports collection indexes
+	reportsColl := DB.Collection("reports")
+	reportsIndexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{{Key: "status", Value: 1}, {Key: "createdAt", Value: -1}},
+		},
+		{
+			Keys: bson.D{{Key: "targetType", Value: 1}},
+		},
+	}
+	if _, err := reportsColl.Indexes().CreateMany(ctx, reportsIndexes); err != nil {
+		log.Printf("Error creating reports indexes: %v", err)
+	}
+
+	// Announcements collection indexes
+	annColl := DB.Collection("announcements")
+	annIndexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{{Key: "createdAt", Value: -1}},
+		},
+	}
+	if _, err := annColl.Indexes().CreateMany(ctx, annIndexes); err != nil {
+		log.Printf("Error creating announcements indexes: %v", err)
+	}
+
 	log.Println("Database indexes created successfully")
 
 	// Run Room Seeder

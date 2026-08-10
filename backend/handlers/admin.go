@@ -187,13 +187,37 @@ func AdminGetAuditLogs(c *gin.Context) {
 	if action := c.Query("action"); action != "" {
 		filter["action"] = action
 	}
+	if targetType := c.Query("targetType"); targetType != "" {
+		filter["targetType"] = targetType
+	}
 	if adminID := c.Query("adminId"); adminID != "" {
 		if oid, err := primitive.ObjectIDFromHex(adminID); err == nil {
 			filter["adminId"] = oid
 		}
 	}
+	if search := c.Query("search"); search != "" {
+		filter["$or"] = []bson.M{
+			{"adminEmail": bson.M{"$regex": escapeRegex(search), "$options": "i"}},
+			{"details": bson.M{"$regex": escapeRegex(search), "$options": "i"}},
+			{"targetId": bson.M{"$regex": escapeRegex(search), "$options": "i"}},
+		}
+	}
 
-	opts := options.Find().SetSort(bson.M{"createdAt": -1}).SetSkip(int64(skip)).SetLimit(int64(limit))
+	// Date range (unix seconds).
+	timeFilter := bson.M{}
+	if from, err := parseIntQuery(c.Query("from")); err == nil && from > 0 {
+		timeFilter["$gte"] = time.Unix(int64(from), 0).UTC()
+	}
+	if to, err := parseIntQuery(c.Query("to")); err == nil && to > 0 {
+		timeFilter["$lte"] = time.Unix(int64(to), 0).UTC()
+	}
+	if len(timeFilter) > 0 {
+		filter["createdAt"] = timeFilter
+	}
+
+	opts := options.Find().SetSort(sortSpec(c, map[string][]string{
+		"createdAt": {"createdAt"},
+	}, bson.D{{Key: "createdAt", Value: -1}})).SetSkip(int64(skip)).SetLimit(int64(limit))
 	cursor, err := database.DB.Collection("admin_audit_logs").Find(ctx, filter, opts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch audit logs"})

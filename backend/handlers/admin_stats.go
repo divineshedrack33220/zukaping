@@ -95,10 +95,10 @@ func AdminGetOverview(c *gin.Context) {
 
 	// Revenue from completed purchases.
 	revenueCursor, err := purchasesColl.Aggregate(ctx, mongo.Pipeline{
-		{{"$match", bson.M{"status": "completed"}}},
-		{{"$group", bson.D{
-			{"_id", nil},
-			{"total", bson.M{"$sum": "$price"}},
+		{{Key: "$match", Value: bson.M{"status": "completed"}}},
+		{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: nil},
+			{Key: "total", Value: bson.M{"$sum": "$price"}},
 		}}},
 	})
 	var totalRevenue float64
@@ -195,10 +195,10 @@ func dailySeries(ctx context.Context, coll *mongo.Collection, timeField string, 
 	}
 
 	pipeline := mongo.Pipeline{
-		{{"$match", bson.M{timeField: bson.M{"$gte": start}}}},
-		{{"$group", bson.D{
-			{"_id", bson.M{"$subtract": bson.A{"$" + timeField, bson.M{"$mod": bson.A{"$" + timeField, 86400}}}}},
-			{"count", bson.M{"$sum": 1}},
+		{{Key: "$match", Value: bson.M{timeField: bson.M{"$gte": start}}}},
+		{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: bson.M{"$subtract": bson.A{"$" + timeField, bson.M{"$mod": bson.A{"$" + timeField, 86400}}}}},
+			{Key: "count", Value: bson.M{"$sum": 1}},
 		}}},
 	}
 

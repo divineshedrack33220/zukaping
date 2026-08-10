@@ -3,6 +3,7 @@ package routes
 import (
     "embed"
     "io/fs"
+    "mime"
     "net/http"
     "os"
     "strings"
@@ -20,7 +21,7 @@ import (
 //go:embed index.html
 var landingPageHTML string
 
-//go:embed admin/index.html admin/admin.css admin/admin.js
+//go:embed admin/index.html admin/admin.css admin/admin.js admin/logo.png admin/manifest.webmanifest admin/sw.js admin/icons/icon-192.png admin/icons/icon-192-maskable.png admin/icons/icon-180.png admin/icons/icon-512.png admin/icons/icon-512-maskable.png
 var adminFS embed.FS
 
 func mustRead(fsys embed.FS, path string) []byte {
@@ -32,6 +33,10 @@ func mustRead(fsys embed.FS, path string) []byte {
 }
 
 func SetupRouter() *gin.Engine {
+    // Ensure non-default extensions are served with correct MIME types.
+    mime.AddExtensionType(".webmanifest", "application/manifest+json")
+    mime.AddExtensionType(".js", "text/javascript; charset=utf-8")
+
     router := gin.New()
     router.Use(gin.Recovery())
 
@@ -232,6 +237,9 @@ func SetupRouter() *gin.Engine {
     protected.POST("/rooms/:id/join", handlers.JoinRoom)
     protected.DELETE("/rooms/:id/leave", handlers.LeaveRoom)
 
+    // Moderation: user-flagged content
+    protected.POST("/reports", handlers.SubmitReport)
+
     // -------- ADMIN API --------
     admin := router.Group("/api/admin")
     admin.Use(middleware.JWTAuthMiddleware())
@@ -244,9 +252,17 @@ func SetupRouter() *gin.Engine {
     admin.GET("/stats/overview", handlers.AdminGetOverview)
     admin.GET("/stats/trends", handlers.AdminGetTrends)
 
+    // Export (CSV / JSON)
+    admin.GET("/export/:entity", handlers.AdminExport)
+
+    // Admin account management
+    admin.POST("/admins", handlers.AdminCreateAdmin)
+    admin.DELETE("/admins/:id", handlers.AdminRemoveAdmin)
+
     // User management
     admin.GET("/users", handlers.AdminListUsers)
     admin.GET("/users/:id", handlers.AdminGetUser)
+    admin.PATCH("/users/:id", handlers.AdminUpdateUser)
     admin.PATCH("/users/:id/status", handlers.AdminUpdateUserStatus)
     admin.PATCH("/users/:id/role", handlers.AdminUpdateUserRole)
     admin.DELETE("/users/:id", handlers.AdminDeleteUser)
@@ -260,6 +276,16 @@ func SetupRouter() *gin.Engine {
     admin.GET("/chats/:id", handlers.AdminGetChat)
     admin.DELETE("/chats/:id", handlers.AdminDeleteChat)
     admin.GET("/rooms", handlers.AdminListRooms)
+    admin.PATCH("/rooms/:id", handlers.AdminUpdateRoom)
+    admin.DELETE("/rooms/:id", handlers.AdminDeleteRoom)
+
+    // Report queue
+    admin.GET("/reports", handlers.AdminListReports)
+    admin.PATCH("/reports/:id", handlers.AdminUpdateReport)
+
+    // Announcements
+    admin.GET("/announcements", handlers.AdminListAnnouncements)
+    admin.POST("/announcements", handlers.AdminSendAnnouncement)
 
     // Engagement & commerce
     admin.GET("/favorites", handlers.AdminListFavorites)
@@ -275,11 +301,12 @@ func SetupRouter() *gin.Engine {
         router.GET("/admin/*filepath", func(c *gin.Context) {
             // SPA: serve index.html for hash-routed paths
             p := c.Param("filepath")
-            if p == "/" || p == "" {
+            if p == "/" || p == "" || strings.TrimPrefix(p, "/") == "index.html" {
                 c.Data(200, "text/html; charset=utf-8", mustRead(adminFS, "admin/index.html"))
                 return
             }
-            if strings.HasSuffix(p, ".css") || strings.HasSuffix(p, ".js") {
+            // Serve real embedded assets (css, js, images, ...); everything else is the SPA
+            if _, err := adminSub.Open(strings.TrimPrefix(p, "/")); err == nil {
                 adminHandler.ServeHTTP(c.Writer, c.Request)
                 return
             }
