@@ -14,9 +14,13 @@ type ServerCandidate = {
 };
 
 const PRODUCTION: ServerCandidate[] = [
+  { base: 'https://zukaping-backend.onrender.com/api', label: 'zukaping-backend (Render)' },
   { base: 'https://lemon16.onrender.com/api', label: 'lemon16 (Render)' },
   { base: 'https://zukaping.onrender.com/api', label: 'zukaping (Render)' },
 ];
+
+/** Where an unprobed production build points until /health has proved a host. */
+export const defaultProductionBase = PRODUCTION[0].base;
 
 const BASE_KEY = 'zukaping.apiBase';
 const FAST_MS = 3000;

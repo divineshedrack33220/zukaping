@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
-import { ensureServer, recoverAfterFailure } from './server-selector';
+import { defaultProductionBase, ensureServer, recoverAfterFailure } from './server-selector';
 import {
   Chat,
   ChatParticipantProfile,
@@ -37,7 +37,7 @@ export type {
 // waiting on a probe.
 const initialBase =
   (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
-  (import.meta.env.PROD ? 'https://lemon16.onrender.com/api' : '/api');
+  (import.meta.env.PROD ? defaultProductionBase : '/api');
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

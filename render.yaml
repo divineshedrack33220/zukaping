@@ -45,7 +45,7 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        value: https://lemon16.onrender.com/api
+    # No VITE_API_URL on purpose: baking in one host would pin the built app to
+    # it, and web_app/src/services/server-selector.ts already probes every
+    # backend and follows whichever one answers.
 
