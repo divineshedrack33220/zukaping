@@ -14,13 +14,19 @@ type ServerCandidate = {
 };
 
 const PRODUCTION: ServerCandidate[] = [
+  { base: 'https://zukaping.com/api', label: 'zukaping.com' },
+  { base: 'https://app.zukaping.com/api', label: 'app.zukaping.com' },
   { base: 'https://zukaping-backend.onrender.com/api', label: 'zukaping-backend (Render)' },
   { base: 'https://lemon16.onrender.com/api', label: 'lemon16 (Render)' },
   { base: 'https://zukaping.onrender.com/api', label: 'zukaping (Render)' },
 ];
 
-/** Where an unprobed production build points until /health has proved a host. */
-export const defaultProductionBase = PRODUCTION[0].base;
+/**
+ * Where an unprobed production build points before a health check has proved a
+ * host. Deliberately the Render hostname: the domain candidates above are not
+ * resolving yet, and an unverified guess would hang the first request.
+ */
+export const defaultProductionBase = 'https://zukaping-backend.onrender.com/api';
 
 const BASE_KEY = 'zukaping.apiBase';
 const FAST_MS = 3000;

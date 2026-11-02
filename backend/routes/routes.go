@@ -55,6 +55,13 @@ func SetupRouter() *gin.Engine {
         "https://app.zukaping.app",
         "https://lemon16.app",
         "https://app.lemon16.app",
+        // The app and the API are the same service, so these only matter when a
+        // page loaded from the custom domain falls back to the Render hostname.
+        "https://zukaping.com",
+        "https://www.zukaping.com",
+        "https://app.zukaping.com",
+        "https://zukaping-backend.onrender.com",
+        "https://lemon16.onrender.com",
     }
     
     if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {

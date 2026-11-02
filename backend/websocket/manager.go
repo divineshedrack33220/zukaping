@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -335,6 +336,11 @@ var upgrader = websocket.Upgrader{
 			"https://app.zukaping.app",
 			"https://lemon16.app",
 			"https://app.lemon16.app",
+			"https://zukaping.com",
+			"https://www.zukaping.com",
+			"https://app.zukaping.com",
+			"https://zukaping-backend.onrender.com",
+			"https://lemon16.onrender.com",
 		}
 
 		if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {
@@ -350,6 +356,13 @@ var upgrader = websocket.Upgrader{
 			if origin == allowed {
 				return true
 			}
+		}
+
+		// Any name pointed at this service serves the app and the API together, so
+		// an Origin equal to the Host it was sent to is the app reaching its own
+		// backend and cannot be a cross-site request.
+		if parsed, err := url.Parse(origin); err == nil && parsed.Host == r.Host {
+			return true
 		}
 		return false
 	},
