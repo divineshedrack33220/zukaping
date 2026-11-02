@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:backend": "vite build && node scripts/copy-dist-to-backend.mjs",
     "preview": "vite preview",
     "lint": "eslint ."
   },

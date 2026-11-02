@@ -12,7 +12,9 @@ export default defineConfig({
   base: '/',
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // Source maps are 3x the app and the Go backend embeds the whole build, so
+    // they would ship to every visitor for no benefit.
+    sourcemap: false,
     chunkSizeWarningLimit: 1200,
   },
   server: {

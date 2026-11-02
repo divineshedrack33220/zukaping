@@ -49,7 +49,10 @@ function candidateOrder(): ServerCandidate[] {
     list.push({ base: trimmed, label: label || hostLabel(trimmed) });
   };
 
-  if (import.meta.env.DEV) add('/api', 'this dev server');
+  // The app and the API are the same Go process now, so the origin the page was
+  // loaded from is the best candidate: no CORS, no cold start on another host.
+  // On a static-only host this probe fails fast and the remote candidates win.
+  add('/api', import.meta.env.DEV ? 'this dev server' : 'this server');
   add(import.meta.env.VITE_API_URL as string | undefined);
   add(readStoredBase());
   for (const candidate of PRODUCTION) add(candidate.base, candidate.label);

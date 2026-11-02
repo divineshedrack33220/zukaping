@@ -1,0 +1,2 @@
+# The client build is committed for Render's Go-only image; keep it byte-exact.
+backend/webapp/dist/** -text

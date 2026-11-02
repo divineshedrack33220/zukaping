@@ -9,7 +9,10 @@
 node_modules/
 
 # --- Build output ---
-dist/
+# Only the Vite output is ignored. backend/webapp/dist is the copy the Go binary
+# embeds, and it has to be committed: Render's Go build image has no Node, so the
+# client cannot be compiled during a deploy.
+web_app/dist/
 build/
 *.tsbuildinfo
 .vite/

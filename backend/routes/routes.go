@@ -15,6 +15,7 @@ import (
     emailconfig "coded/pkg/email"
     "coded/pkg/logger"
     "coded/pkg/metrics"
+    "coded/webapp"
 
     "github.com/gin-gonic/gin"
     "github.com/prometheus/client_golang/prometheus/promhttp"
@@ -109,8 +110,13 @@ func SetupRouter() *gin.Engine {
     // Prometheus metrics endpoint
     router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-    // Serve landing page at root
+    // The built web app owns the root; the landing page is only the answer when
+    // no client build has been embedded, which is the case on a bare clone.
     router.GET("/", func(c *gin.Context) {
+        if webapp.Available() {
+            c.Data(200, "text/html; charset=utf-8", webapp.Index())
+            return
+        }
         c.Data(200, "text/html; charset=utf-8", []byte(landingPageHTML))
     })
 
@@ -353,6 +359,18 @@ func SetupRouter() *gin.Engine {
             })
             return
         }
+        // Any other unmatched GET is either an asset of the embedded app or a
+        // client-side route like /feed, which has to answer with the app shell
+        // for BrowserRouter to take over.
+        if webapp.Available() && c.Request.Method == http.MethodGet {
+            if p := strings.TrimPrefix(c.Request.URL.Path, "/"); p != "" && webapp.Has(p) {
+                webapp.Handler().ServeHTTP(c.Writer, c.Request)
+                return
+            }
+            c.Data(200, "text/html; charset=utf-8", webapp.Index())
+            return
+        }
+
         // For non-API routes, let Gin handle it
         c.Next()
     })

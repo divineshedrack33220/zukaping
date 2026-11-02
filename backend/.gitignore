@@ -34,6 +34,11 @@ vendor/
 dist/
 build/
 
+# The client build is embedded by go:embed and Render's Go image has no Node,
+# so web_app's output has to be tracked once it is copied under backend/.
+!webapp/dist/
+!webapp/dist/**
+
 # Temporary files
 tmp/
 temp/
