@@ -19,6 +19,14 @@ import (
 
 var chatLog = logger.Logger.With().Str("handler", "chat").Logger()
 
+// chatIDHex stringifies a decoded _id so it can be matched against the unread counts.
+func chatIDHex(value interface{}) string {
+    if id, ok := value.(primitive.ObjectID); ok {
+        return id.Hex()
+    }
+    return ""
+}
+
 func GetChatList(c *gin.Context) {
     userIDStr := c.GetString("userId")
     userID, err := primitive.ObjectIDFromHex(userIDStr)
@@ -118,6 +126,43 @@ func GetChatList(c *gin.Context) {
         return
     }
 
+    // Unread counts, in one aggregation for the whole list. isRead is a single
+    // global flag per message (models.Message), so in a group one member reading
+    // clears it for everyone — the same rule MarkAsRead already applies.
+    unreadByChat := map[string]int{}
+    chatIDs := make([]primitive.ObjectID, 0, len(results))
+    for _, r := range results {
+        if id, ok := r["id"].(primitive.ObjectID); ok {
+            chatIDs = append(chatIDs, id)
+        }
+    }
+    if len(chatIDs) > 0 {
+        messagesColl := database.Client.Database("coded").Collection("messages")
+        unreadCur, err := messagesColl.Aggregate(ctx, mongo.Pipeline{
+            {{Key: "$match", Value: bson.D{
+                {Key: "chatId", Value: bson.D{{Key: "$in", Value: chatIDs}}},
+                {Key: "senderId", Value: bson.D{{Key: "$ne", Value: userID}}},
+                {Key: "isRead", Value: false},
+            }}},
+            {{Key: "$group", Value: bson.D{
+                {Key: "_id", Value: "$chatId"},
+                {Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
+            }}},
+        })
+        if err == nil {
+            defer unreadCur.Close(ctx)
+            var rows []struct {
+                ID    primitive.ObjectID `bson:"_id"`
+                Count int                  `bson:"count"`
+            }
+            if err := unreadCur.All(ctx, &rows); err == nil {
+                for _, row := range rows {
+                    unreadByChat[row.ID.Hex()] = row.Count
+                }
+            }
+        }
+    }
+
     // Ensure partner is always a valid object with fallback values
     response := make([]map[string]interface{}, len(results))
     for i, r := range results {
@@ -157,6 +202,7 @@ func GetChatList(c *gin.Context) {
 
         response[i] = map[string]interface{}{
             "id":                   r["id"],
+            "unreadCount":          unreadByChat[chatIDHex(r["id"])],
             "lastMessage":          r["lastMessage"],
             "lastMessageAt":        r["lastMessageAt"],
             "isGroup":              r["isGroup"],
@@ -300,6 +346,7 @@ func CreateChat(c *gin.Context) {
         "lastMessageAt": newChat.LastMessageAt,
         "isGroup":       newChat.IsGroup,
         "groupName":     newChat.GroupName,
+        "participants":  participantIDs, // Include participants for scoped broadcast
     }
 
     if !newChat.IsGroup {
@@ -319,7 +366,7 @@ func CreateChat(c *gin.Context) {
         }
     }
 
-    // Broadcast new chat creation via WebSocket
+    // Broadcast new chat creation via WebSocket (only to participants)
     if wsManager != nil {
         wsManager.BroadcastChatCreated(chatData)
     }
@@ -547,6 +594,15 @@ func UpdateGroupChat(c *gin.Context) {
 		return
 	}
 
+	// Broadcast room update via WebSocket so members' UIs live-update
+	if wsManager != nil {
+		wsManager.BroadcastRoomUpdate(map[string]interface{}{
+			"chatId":         chatId.Hex(),
+			"currentMembers": len(chat.Participants),
+			"isTrending":     chat.GroupName != "",
+		})
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Group updated successfully"})
 }
 
@@ -613,6 +669,19 @@ func PromoteToAdmin(c *gin.Context) {
 	_, err = chatsColl.UpdateOne(ctx, bson.M{"_id": chatId}, bson.M{"$addToSet": bson.M{"adminIds": targetUserID}})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to promote member"})
+		return
+	}
+
+	// Verify target user is a participant in the group
+	isParticipant := false
+	for _, pid := range chat.Participants {
+		if pid == targetUserID {
+			isParticipant = true
+			break
+		}
+	}
+	if !isParticipant {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Target user must be a participant to promote to admin"})
 		return
 	}
 
@@ -687,6 +756,25 @@ func RemoveGroupMember(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove member"})
 		return
+	}
+
+	// Broadcast room update via WebSocket so members' UIs live-update
+	if wsManager != nil {
+		currentCount := len(chat.Participants)
+		if targetUserID != primitive.NilObjectID {
+			// Check if targetUserID is in participants to get accurate count
+			for _, p := range chat.Participants {
+				if p == targetUserID {
+					currentCount--
+					break
+				}
+			}
+		}
+		wsManager.BroadcastRoomUpdate(map[string]interface{}{
+			"chatId":         chatId.Hex(),
+			"currentMembers": currentCount,
+			"isTrending":     chat.GroupName != "",
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Member removed from group"})
@@ -812,6 +900,17 @@ func JoinGroupByInviteCode(c *gin.Context) {
 		return
 	}
 
+	// Enforce max_members limit
+	if chat.MaxMembers > 0 {
+		// Count participants (this is stored in the chat document)
+		var chatObj models.Chat
+		chatsColl.FindOne(ctx, bson.M{"_id": chat.ID}).Decode(&chatObj)
+		if len(chatObj.Participants) >= chat.MaxMembers {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Group is at maximum capacity"})
+			return
+		}
+	}
+
 	// Add user to participants if not already there
 	_, err = chatsColl.UpdateOne(ctx,
 		bson.M{"_id": chat.ID},
@@ -892,6 +991,16 @@ func AddGroupMember(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add member to group"})
 		return
+	}
+
+	// Broadcast room update via WebSocket so members' UIs live-update
+	if wsManager != nil {
+		currentCount := len(chat.Participants) + 1 // +1 because we just added
+		wsManager.BroadcastRoomUpdate(map[string]interface{}{
+			"chatId":         chatId.Hex(),
+			"currentMembers": currentCount,
+			"isTrending":     chat.GroupName != "",
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{

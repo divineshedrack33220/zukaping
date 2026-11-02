@@ -10,21 +10,15 @@ import (
 
 	"coded/database"
 	"coded/handlers"
+	cloudconfig "coded/pkg/cloudinary"
 	"coded/pkg/logger"
 	"coded/routes"
 	"coded/websocket"
 
-	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
 )
-
-var cloudinaryClient *cloudinary.Cloudinary
-
-func getCloudinaryClient() *cloudinary.Cloudinary {
-	return cloudinaryClient
-}
 
 func validateEnv() {
 	required := []string{
@@ -59,15 +53,15 @@ func main() {
 	// Initialize VAPID keys for push notifications
 	handlers.InitVAPIDKeys()
 
+	// Initialize Google OAuth after the env file has been read
+	handlers.InitGoogleOAuth()
+
 	// Initialize Cloudinary once at startup
-	if cloudinaryURL := os.Getenv("CLOUDINARY_URL"); cloudinaryURL != "" {
-		cld, err := cloudinary.NewFromURL(cloudinaryURL)
-		if err != nil {
-			logger.Logger.Error().Err(err).Msg("Failed to initialize Cloudinary")
-		} else {
-			cloudinaryClient = cld
-			logger.Logger.Info().Msg("Cloudinary initialized successfully")
-		}
+	if cloudconfig.IsConfigured() {
+		logger.Logger.Info().Msg("Cloudinary initialized successfully")
+	} else {
+		logger.Logger.Warn().
+			Msg("Cloudinary is not configured: image uploads will fail. Set CLOUDINARY_URL, or CLOUDINARY_CLOUD_NAME with CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET")
 	}
 
 	// ---------------- DB CONNECTION (NON-BLOCKING) ----------------
@@ -249,10 +243,10 @@ func cleanupDuplicateChats() {
 
 	chatsColl := database.Client.Database("coded").Collection("chats")
 
-	// Remove chats with empty participants array
+	// Remove chats with missing/NULL participants (not empty arrays, which can be intentional room mirrors)
+	// Room mirror chats created by SeedRooms have participants: primitive.A{} which should be preserved.
 	filter := bson.M{
 		"$or": []bson.M{
-			{"participants": bson.M{"$size": 0}},
 			{"participants": bson.M{"$exists": false}},
 			{"participants": nil},
 		},

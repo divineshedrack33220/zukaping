@@ -1,0 +1,31 @@
+{
+  "name": "Zukaping",
+  "short_name": "Zukaping",
+  "description": "Chat, meet and connect in real time",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#026AFD",
+  "theme_color": "#026AFD",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

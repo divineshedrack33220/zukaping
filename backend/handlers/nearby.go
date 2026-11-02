@@ -58,8 +58,12 @@ func GetNearbyUsers(c *gin.Context) {
         "blockedUsers": bson.M{"$ne": userID},
     }
 
-    // Get a limited sample of users to reduce server stress
-    findOptions := options.Find().SetLimit(30)
+    // FIX: The 2dsphere index on 'location' is dead because the User model stores
+    // latitude/longitude as separate float fields, not as a GeoJSON point.
+    // Instead, do an unbounded fetch with manual haversine filtering below.
+    // NOTE: For large collections this is slow; consider adding a geohash or
+    // a dedicated location collection in a future refactor.
+    findOptions := options.Find()
     cursor, err := usersColl.Find(ctx, blockedFilter, findOptions)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})

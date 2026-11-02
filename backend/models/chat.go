@@ -14,4 +14,5 @@ type Chat struct {
 	GroupDescription string               `bson:"groupDescription,omitempty" json:"groupDescription,omitempty"`
 	AdminIDs         []primitive.ObjectID `bson:"adminIds,omitempty" json:"adminIds,omitempty"`
 	InviteCode       string               `bson:"inviteCode,omitempty" json:"inviteCode,omitempty"`
+	MaxMembers       int                  `bson:"maxMembers,omitempty" json:"maxMembers,omitempty"`
 }

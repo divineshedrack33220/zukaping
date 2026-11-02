@@ -11,6 +11,8 @@ import (
 
     "coded/handlers"
     "coded/middleware"
+    cloudconfig "coded/pkg/cloudinary"
+    emailconfig "coded/pkg/email"
     "coded/pkg/logger"
     "coded/pkg/metrics"
 
@@ -141,12 +143,26 @@ func SetupRouter() *gin.Engine {
     router.GET("/health/ready", handlers.ReadinessCheck)
 
     router.GET("/api/health", func(c *gin.Context) {
+        cloudinary := "not configured - image uploads will fail"
+        if cloudconfig.IsConfigured() {
+            cloudinary = "configured"
+        }
+        google := "not configured - set GOOGLE_CLIENT_ID"
+        if handlers.IsGoogleOAuthConfigured() {
+            google = "Google OAuth available"
+        }
+        email := "not configured - reset codes cannot be sent"
+        if emailconfig.IsConfigured() {
+            email = "configured as " + emailconfig.FromAddress()
+        }
         c.JSON(200, gin.H{
-            "status":  "ok",
-            "message": "Coded API is running",
-            "time":    time.Now().Unix(),
-            "ws":      "WebSocket available at /ws",
-            "google":  "Google OAuth available",
+            "status":     "ok",
+            "message":    "Coded API is running",
+            "time":       time.Now().Unix(),
+            "ws":         "WebSocket available at /ws",
+            "google":     google,
+            "cloudinary": cloudinary,
+            "email":      email,
         })
     })
 
@@ -155,6 +171,10 @@ func SetupRouter() *gin.Engine {
     public.Use(middleware.RateLimitMiddleware())
     public.POST("/signup", middleware.SignupRateLimitMiddleware(), handlers.Signup)
     public.POST("/login", middleware.LoginRateLimitMiddleware(), handlers.Login)
+
+    // Password reset by emailed one-time code
+    public.POST("/request-otp", middleware.OTPRequestRateLimitMiddleware(), handlers.RequestOTP)
+    public.POST("/reset-password", middleware.OTPVerifyRateLimitMiddleware(), handlers.ResetPasswordWithOTP)
     public.GET("/vapid-public-key", handlers.GetVapidPublicKey)
     public.GET("/groups/invite/:code", handlers.GetGroupInfoByInviteCode)
 

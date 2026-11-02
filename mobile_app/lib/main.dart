@@ -15,16 +15,15 @@ import 'screens/view_profile_screen.dart';
 import 'screens/group_join_screen.dart';
 
 import 'dart:async';
-
 import 'services/notification_service.dart';
 import 'widgets/network_wrapper.dart';
 import 'services/theme_service.dart';
 import 'services/api_service.dart';
 import 'services/crash_reporter.dart';
-import 'config/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  CrashReporter.setMaxErrors(5);
   CrashReporter.install();
 
   runZonedGuarded(() async {
@@ -42,6 +41,7 @@ void main() {
 
     runApp(const ZukapingApp());
   }, (Object error, StackTrace stack) {
+    // Global unhandled error - report but don't crash the app
     CrashReporter.record(error, stack);
   });
 }
@@ -63,7 +63,10 @@ class ZukapingApp extends StatelessWidget {
               valueListenable: CrashReporter.errors,
               builder: (context, errors, _) {
                 final wrapped = NetworkWrapper(child: child!);
+                // In release mode, never show error stacks to users
+                // In debug mode, show a dismissable banner at the bottom
                 if (errors.isEmpty) return wrapped;
+                
                 return Stack(
                   children: [
                     wrapped,
@@ -74,9 +77,24 @@ class ZukapingApp extends StatelessWidget {
                       child: Container(
                         color: const Color(0xFFFF1744),
                         padding: const EdgeInsets.all(12),
-                        child: Text(
-                          errors.join('\n\n'),
-                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        child: Row(
+                          children: [
+                            // Show only the latest error, truncated if needed
+                            Expanded(
+                              child: Text(
+                                errors.first.isNotEmpty ? errors.first.split('\n')[0] : 'An error occurred',
+                                style: const TextStyle(color: Colors.white, fontSize: 12),
+                                overflow: TextOverflow.flex,
+                              ),
+                            ),
+                            // Close button to dismiss the banner
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                              onPressed: () {
+                                CrashReporter.clear();
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -104,7 +122,7 @@ class ZukapingApp extends StatelessWidget {
           },
           onGenerateRoute: (settings) {
             // Handle routes with arguments
-            
+
             // Chat screen - can accept chatId or userId
             if (settings.name == '/chat') {
               final args = settings.arguments as Map<String, dynamic>?;

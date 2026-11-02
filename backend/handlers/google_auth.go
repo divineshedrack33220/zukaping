@@ -7,6 +7,7 @@ import (
     "io"
     "log"
     "net/http"
+    "net/url"
     "os"
     "time"
 
@@ -28,13 +29,17 @@ const googleTokeninfoURL = "https://oauth2.googleapis.com/tokeninfo"
 // Google OAuth Config
 var (
     googleOAuthConfig *oauth2.Config
+    googleClientID    string
 )
 
-// Initialize Google OAuth
-func init() {
+// InitGoogleOAuth configures Google sign-in. It is called from main() after
+// godotenv.Load() rather than from init(), because package init functions run
+// before main() and therefore never see the .env values.
+func InitGoogleOAuth() {
     clientID := os.Getenv("GOOGLE_CLIENT_ID")
     clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
-    
+    googleClientID = clientID
+
     if clientID != "" && clientSecret != "" {
         // Get redirect URL from environment or use default
         redirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
@@ -53,9 +58,17 @@ func init() {
             Endpoint: google.Endpoint,
         }
         log.Println("✅ Google OAuth configured successfully")
+    } else if clientID != "" {
+        log.Println("✅ Google credential sign-in configured; code-exchange flow needs GOOGLE_CLIENT_SECRET")
     } else {
         log.Println("⚠️  Google OAuth not configured - set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET")
     }
+}
+
+// IsGoogleOAuthConfigured reports whether a client ID was loaded, i.e. whether
+// /api/google-auth will accept credentials instead of failing closed.
+func IsGoogleOAuthConfigured() bool {
+    return googleClientID != ""
 }
 
 // Google user info structure
@@ -158,8 +171,13 @@ func GoogleAuthWithCredential(c *gin.Context) {
         return
     }
 
+    if googleClientID == "" {
+        c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Google Sign-In is not configured"})
+        return
+    }
+
     // Verify the credential via Google's tokeninfo endpoint (prevents forged JWTs)
-    resp, err := http.Get(googleTokeninfoURL + "?id_token=" + req.Credential)
+    resp, err := http.Get(googleTokeninfoURL + "?id_token=" + url.QueryEscape(req.Credential))
     if err != nil {
         log.Printf("Failed to call Google tokeninfo: %v", err)
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify credential"})
@@ -180,13 +198,29 @@ func GoogleAuthWithCredential(c *gin.Context) {
     }
 
     var tokenInfo struct {
-        Sub     string `json:"sub"`
-        Email   string `json:"email"`
-        Name    string `json:"name"`
-        Picture string `json:"picture"`
+        Issuer   string `json:"iss"`
+        Audience string `json:"aud"`
+        Sub      string `json:"sub"`
+        Email    string `json:"email"`
+        Name     string `json:"name"`
+        Picture  string `json:"picture"`
     }
     if err := json.Unmarshal(body, &tokenInfo); err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse tokeninfo response"})
+        return
+    }
+
+    // tokeninfo proves the JWT was signed by Google, not that it was issued for
+    // this app. Without the audience check, a token minted for any other Google
+    // client would sign that email into Zukaping.
+    if tokenInfo.Audience != googleClientID {
+        log.Printf("Google credential audience mismatch: got %q", tokenInfo.Audience)
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Google credential"})
+        return
+    }
+    if tokenInfo.Issuer != "accounts.google.com" && tokenInfo.Issuer != "https://accounts.google.com" {
+        log.Printf("Google credential issuer rejected: %q", tokenInfo.Issuer)
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Google credential"})
         return
     }
 
@@ -227,6 +261,14 @@ func handleGoogleUser(c *gin.Context, googleUser GoogleUserInfo, token *oauth2.T
     // Check if user already exists
     var user models.User
     err := usersColl.FindOne(ctx, bson.M{"email": googleUser.Email}).Decode(&user)
+    if err == mongo.ErrNoDocuments {
+        // Google hands back a lowercased address, but accounts created before
+        // signup normalised case would otherwise get a duplicate row here.
+        err = usersColl.FindOne(ctx, bson.M{
+            "email": bson.M{"$regex": escapeRegex(googleUser.Email), "$options": "i"},
+        }).Decode(&user)
+    }
+    isNewUser := err == mongo.ErrNoDocuments
 
     if err == mongo.ErrNoDocuments {
         // New user - create account
@@ -308,7 +350,7 @@ func handleGoogleUser(c *gin.Context, googleUser GoogleUserInfo, token *oauth2.T
         "username":              user.Username,
         "avatar":                user.Avatar,
         "name":                  user.Name,
-        "isNewUser":             err == mongo.ErrNoDocuments,
+        "isNewUser":              isNewUser,
         "hasCompletedOnboarding": hasCompletedOnboarding,
         "message":               "Authentication successful",
         "expires":               expirationTime.Unix(),

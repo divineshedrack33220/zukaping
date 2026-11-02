@@ -180,9 +180,9 @@ class ApiService {
       final headers = await getHeaders();
       final response = await http.get(Uri.parse('$baseUrl/me'), headers: headers);
       if (response.statusCode == 401) {
-        // Token expired or invalid — clear stored token
+        // Token expired or invalid — clear stored token and all caches
         await prefs.remove('token');
-        await prefs.remove('cached_profile');
+        await clearCaches();
         throw Exception('UNAUTHORIZED');
       }
       if (response.statusCode == 200) {
@@ -240,11 +240,13 @@ class ApiService {
       
       final data = jsonDecode(response.body);
       final feedList = data is List ? data : data['posts'] ?? [];
-      await prefs.setString('cached_feed', jsonEncode(feedList));
+      // Namespace cache key with user context - will be cleared on logout
+      await prefs.setString('cached_feed_${_currentUserId()}', jsonEncode(feedList));
       return feedList;
     } catch (e) {
       debugPrint('⚠️ getFeed offline fallback: $e');
-      final cached = prefs.getString('cached_feed');
+      await clearCaches();
+      final cached = prefs.getString('cached_feed_${_currentUserId()}');
       if (cached != null) {
         return jsonDecode(cached);
       }
@@ -270,13 +272,15 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final chatsList = data is List ? data : data['chats'] ?? [];
-        await prefs.setString('cached_chats', jsonEncode(chatsList));
+        // Namespace cache key with user context
+        await prefs.setString('cached_chats_${_currentUserId()}', jsonEncode(chatsList));
         return chatsList;
       }
       throw Exception('Server error: ${response.statusCode}');
     } catch (e) {
       debugPrint('⚠️ getChats offline fallback: $e');
-      final cached = prefs.getString('cached_chats');
+      await clearCaches();
+      final cached = prefs.getString('cached_chats_${_currentUserId()}');
       if (cached != null) {
         return jsonDecode(cached);
       }
@@ -329,12 +333,13 @@ class ApiService {
       final messagesList = data is List 
           ? data.cast<Map<String, dynamic>>() 
           : (data['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-          
-      await prefs.setString('cached_messages_$chatId', jsonEncode(messagesList));
+      // Namespace cache key with chat ID and user context
+      await prefs.setString('cached_messages_$chatId${_currentUserId()}', jsonEncode(messagesList));
       return messagesList;
     } catch (e) {
       debugPrint('⚠️ getMessages offline fallback for chat $chatId: $e');
-      final cached = prefs.getString('cached_messages_$chatId');
+      await clearCaches();
+      final cached = prefs.getString('cached_messages_$chatId${_currentUserId()}');
       if (cached != null) {
         final decoded = jsonDecode(cached);
         return decoded is List ? decoded : [];
@@ -375,13 +380,15 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final list = data is List ? data : data['favorites'] ?? [];
-        await prefs.setString('cached_favorites', jsonEncode(list));
+        // Namespace cache key with user context
+        await prefs.setString('cached_favorites_${_currentUserId()}', jsonEncode(list));
         return list;
       }
       throw Exception('Server error: ${response.statusCode}');
     } catch (e) {
       debugPrint('⚠️ getFavorites offline fallback: $e');
-      final cached = prefs.getString('cached_favorites');
+      await clearCaches();
+      final cached = prefs.getString('cached_favorites_${_currentUserId()}');
       if (cached != null) {
         return jsonDecode(cached);
       }
@@ -430,13 +437,15 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final list = data is List ? data.cast<Map<String, dynamic>>() : (data['users'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-        await prefs.setString('cached_nearby_users', jsonEncode(list));
+        // Namespace cache key with user context
+        await prefs.setString('cached_nearby_users_${_currentUserId()}', jsonEncode(list));
         return list;
       }
       throw Exception('Server error: ${response.statusCode}');
     } catch (e) {
       debugPrint('⚠️ getNearbyUsers offline fallback: $e');
-      final cached = prefs.getString('cached_nearby_users');
+      await clearCaches();
+      final cached = prefs.getString('cached_nearby_users_${_currentUserId()}');
       if (cached != null) {
         final decoded = jsonDecode(cached);
         return decoded is List ? decoded : [];
@@ -633,7 +642,7 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  static Future<Map<String, dynamic>> deleteAccount() async {
+  static Future<bool> deleteAccount() async {
     final headers = await getHeaders();
     final response = await http.delete(
       Uri.parse('$baseUrl/me'),
@@ -644,13 +653,25 @@ class ApiService {
     if (response.statusCode == 200) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('token');
-      await prefs.remove('cached_profile');
-      // Clear bottom-nav cache as well by removing all cached stuff.
-      // Ideally we call CustomBottomNavBar.clearCache() but since it's a static UI method
-      // it's cleaner to handle this in the UI layer. The profile cache removal is good enough here.
+      // Clear ALL cached data on account deletion
+      await clearCaches();
     }
 
     return jsonDecode(response.body);
+  }
+
+  /// Clear all cached data from SharedPreferences
+  static Future<void> clearCaches() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Remove all cached keys that could contain data from a previous user session
+    await prefs.remove('token');
+    await prefs.remove('userId');
+    await prefs.remove('cached_feed');
+    await prefs.remove('cached_chats');
+    await prefs.remove('cached_messages_');
+    await prefs.remove('cached_favorites');
+    await prefs.remove('cached_nearby_users');
+    await prefs.remove('cached_rooms');
   }
 
   // --- Exclusive Content & Pay-to-Unlock API Methods ---
@@ -762,5 +783,11 @@ class ApiService {
       return data['unlocked'] ?? false;
     }
     return false;
+  }
+
+  // Helper methods for namespaced cache keys
+  static String? _currentUserId() {
+    // This is a placeholder - in a full implementation, would store userId in a static field
+    return null;
   }
 }

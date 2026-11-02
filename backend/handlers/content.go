@@ -4,13 +4,12 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"coded/database"
+	cloudconfig "coded/pkg/cloudinary"
 	"coded/models"
 
-	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -42,9 +41,10 @@ func UploadProfileImage(c *gin.Context) {
 	}
 	defer photoFile.Close()
 
-	cld, err := cloudinary.NewFromURL(os.Getenv("CLOUDINARY_URL"))
+	cld, err := cloudconfig.ClientFromEnv()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloudinary configuration error"})
+		log.Printf("[UploadProfileImage] %s", cloudconfig.ConfigError(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloudinary is not configured on this server"})
 		return
 	}
 
@@ -55,16 +55,17 @@ func UploadProfileImage(c *gin.Context) {
 		Transformation: "c_limit,w_800,h_800,q_auto",
 	}
 
-	uploadResult, err := cld.Upload.Upload(ctx, photoFile, uploadParams)
+	secureURL, err := cloudconfig.UploadFile(ctx, cld, photoFile, uploadParams)
 	if err != nil {
+		log.Printf("[UploadProfileImage] %s", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload photo to Cloudinary"})
 		return
 	}
 
 	newImage := models.ProfileImage{
 		ID:           imageID,
-		URL:          uploadResult.SecureURL,
-		ThumbnailURL: uploadResult.SecureURL,
+		URL:          secureURL,
+		ThumbnailURL: secureURL,
 		IsExclusive:  false,
 		Price:        0,
 		Currency:     "NGN",
@@ -130,17 +131,44 @@ func UpdateProfileImage(c *gin.Context) {
 
 	usersColl := database.Client.Database("coded").Collection("users")
 
+	// The URL is needed to keep the plain 'photos' mirror in step with the
+	// toggle; other endpoints serve that array without an unlock check.
+	var user models.User
+	if err := usersColl.FindOne(ctx, bson.M{"_id": userID}).Decode(&user); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	var imageURL string
+	for _, img := range user.ProfileImages {
+		if img.ID == imageID {
+			imageURL = img.URL
+			break
+		}
+	}
+	if imageURL == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found on your profile"})
+		return
+	}
+
 	// Update specific element inside the profile_images array
+	update := bson.M{
+		"$set": bson.M{
+			"profile_images.$.is_exclusive": req.IsExclusive,
+			"profile_images.$.price":        req.Price,
+			"profile_images.$.currency":     req.Currency,
+		},
+	}
+	if req.IsExclusive {
+		update["$pull"] = bson.M{"photos": imageURL}
+	} else {
+		update["$addToSet"] = bson.M{"photos": imageURL}
+	}
+
 	_, err = usersColl.UpdateOne(
 		ctx,
 		bson.M{"_id": userID, "profile_images._id": imageID},
-		bson.M{
-			"$set": bson.M{
-				"profile_images.$.is_exclusive": req.IsExclusive,
-				"profile_images.$.price":        req.Price,
-				"profile_images.$.currency":     req.Currency,
-			},
-		},
+		update,
 	)
 
 	if err != nil {
@@ -257,6 +285,7 @@ func GetUserProfile(c *gin.Context) {
 
 	// Map profile images to response format, verifying unlock status
 	var imagesList []map[string]interface{}
+	lockedURLs := map[string]bool{}
 	for _, img := range targetUser.ProfileImages {
 		isUnlocked := false
 		if isOwner || !img.IsExclusive {
@@ -276,17 +305,39 @@ func GetUserProfile(c *gin.Context) {
 			}
 		}
 
-		imagesList = append(imagesList, map[string]interface{}{
-			"id":            img.ID.Hex(),
-			"url":           img.URL,
-			"thumbnail_url": img.ThumbnailURL,
-			"is_exclusive":  img.IsExclusive,
-			"price":         img.Price,
-			"currency":      img.Currency,
-			"blur_hash":     img.BlurHash,
-			"is_unlocked":   isUnlocked,
-			"created_at":    img.CreatedAt,
-		})
+		entry := map[string]interface{}{
+			"id":           img.ID.Hex(),
+			"is_exclusive": img.IsExclusive,
+			"price":        img.Price,
+			"currency":     img.Currency,
+			"blur_hash":    img.BlurHash,
+			"is_unlocked":  isUnlocked,
+			"created_at":   img.CreatedAt,
+		}
+		if isUnlocked {
+			entry["url"] = img.URL
+			entry["thumbnail_url"] = img.ThumbnailURL
+		} else {
+			// The clients hide locked media with a CSS blur only, so the file
+			// itself has to stay server-side or paying is meaningless.
+			entry["url"] = ""
+			entry["thumbnail_url"] = ""
+			lockedURLs[img.URL] = true
+			lockedURLs[img.ThumbnailURL] = true
+		}
+		imagesList = append(imagesList, entry)
+	}
+
+	// photos is the plain-URL mirror of profile_images; drop the entries this
+	// viewer may not see, otherwise the same files leak next door.
+	visiblePhotos := targetUser.Photos
+	if !isOwner && len(lockedURLs) > 0 {
+		visiblePhotos = make([]string, 0, len(targetUser.Photos))
+		for _, url := range targetUser.Photos {
+			if !lockedURLs[url] {
+				visiblePhotos = append(visiblePhotos, url)
+			}
+		}
 	}
 
 	// Calculate age based on birthDate timestamp (in milliseconds or seconds)
@@ -312,7 +363,7 @@ func GetUserProfile(c *gin.Context) {
 		"bio":            targetUser.Bio,
 		"gender":         targetUser.Gender,
 		"interestedIn":   targetUser.InterestedIn,
-		"photos":         targetUser.Photos,
+		"photos":         visiblePhotos,
 		"status":         targetUser.Status,
 		"birthDate":      targetUser.BirthDate,
 		"age":            age,

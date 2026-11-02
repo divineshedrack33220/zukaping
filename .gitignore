@@ -1,0 +1,46 @@
+# --- Secrets: real environment files never belong in a public repo ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# --- Dependencies ---
+node_modules/
+
+# --- Build output ---
+dist/
+build/
+*.tsbuildinfo
+.vite/
+
+# --- Compiled Go binaries and deploy artifacts ---
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+backend/app
+backend/server
+backend/coded
+backend/lemon16-backend
+backend/app-release.apk
+*.test
+*.out
+coverage/
+
+# --- Logs and local scratch ---
+*.log
+logs/
+tmp/
+temp/
+server.log
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*~

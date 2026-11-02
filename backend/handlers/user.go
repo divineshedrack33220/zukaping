@@ -6,13 +6,12 @@ import (
 	"encoding/hex"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"coded/database"
+	cloudconfig "coded/pkg/cloudinary"
 	"coded/models"
 
-	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -334,9 +333,10 @@ func UpdateMyProfile(c *gin.Context) {
 		if err == nil {
 			defer avatarFile.Close()
 
-			cld, err := cloudinary.NewFromURL(os.Getenv("CLOUDINARY_URL"))
+			cld, err := cloudconfig.ClientFromEnv()
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloudinary configuration error"})
+				log.Printf("[UpdateProfile] %s", cloudconfig.ConfigError(err))
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloudinary is not configured on this server"})
 				return
 			}
 
@@ -346,13 +346,14 @@ func UpdateMyProfile(c *gin.Context) {
 				Transformation: "c_limit,w_400,h_400,q_auto",
 			}
 
-			uploadResult, err := cld.Upload.Upload(ctx, avatarFile, uploadParams)
+			secureURL, err := cloudconfig.UploadFile(ctx, cld, avatarFile, uploadParams)
 			if err != nil {
+				log.Printf("[UpdateProfile] %s", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload avatar to Cloudinary"})
 				return
 			}
 
-			update["$set"].(bson.M)["avatar"] = uploadResult.SecureURL
+			update["$set"].(bson.M)["avatar"] = secureURL
 		}
 	}
 
@@ -425,9 +426,10 @@ func UploadPhoto(c *gin.Context) {
 	}
 	defer photoFile.Close()
 
-	cld, err := cloudinary.NewFromURL(os.Getenv("CLOUDINARY_URL"))
+	cld, err := cloudconfig.ClientFromEnv()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloudinary configuration error"})
+		log.Printf("[UploadPhoto] %s", cloudconfig.ConfigError(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloudinary is not configured on this server"})
 		return
 	}
 
@@ -437,13 +439,14 @@ func UploadPhoto(c *gin.Context) {
 		Transformation: "c_limit,w_800,h_800,q_auto",
 	}
 
-	uploadResult, err := cld.Upload.Upload(ctx, photoFile, uploadParams)
+	secureURL, err := cloudconfig.UploadFile(ctx, cld, photoFile, uploadParams)
 	if err != nil {
+		log.Printf("[UploadPhoto] %s", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload photo to Cloudinary"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"url": uploadResult.SecureURL})
+	c.JSON(http.StatusOK, gin.H{"url": secureURL})
 }
 
 func GetReferral(c *gin.Context) {

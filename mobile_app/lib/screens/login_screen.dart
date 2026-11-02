@@ -431,6 +431,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _performDemoLogin() async {
+    // Demo account only available in debug mode - never auto-provision shared accounts in production
+    if (!kDebugMode) return;
     setState(() {
       _isLoading = true;
       _errorMessage = '';

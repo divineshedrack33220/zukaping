@@ -6,7 +6,9 @@ import 'api_service.dart';
 
 class WebSocketService {
   static WebSocketChannel? _channel;
+  static bool _shouldReconnect = true;
   static final StreamController<Map<String, dynamic>> _controller = StreamController<Map<String, dynamic>>.broadcast();
+  static Timer? _reconnectTimer;
   static String get wsUrl {
     return ApiService.baseUrl.replaceFirst('http', 'ws').replaceAll('/api', '/ws');
   }
@@ -14,6 +16,7 @@ class WebSocketService {
   static Stream<Map<String, dynamic>> get stream => _controller.stream;
 
   static Future<void> connect() async {
+    if (!_shouldReconnect) return;
     if (_channel != null) return;
     final token = await ApiService.getToken();
     if (token == null) return;
@@ -27,28 +30,40 @@ class WebSocketService {
       _channel!.stream.listen(
         (data) {
           try {
-            debugPrint('📥 WebSocket received: $data');
+            // debugPrint('📥 WebSocket received: $data'); // Removed - payload logging leaks data
             final message = jsonDecode(data);
             _controller.add(message);
           } catch (e) {
-            debugPrint('❌ Error decoding WebSocket message: $e');
+            // silently ignore decode errors
           }
         },
         onDone: () {
-          debugPrint('⚠️ WebSocket closed normally. Reconnecting in 5s...');
-          _channel = null;
-          Future.delayed(const Duration(seconds: 5), connect);
+          if (_shouldReconnect) {
+            debugPrint('⚠️ WebSocket closed normally. Reconnecting in 5s...');
+            _channel = null;
+            _reconnectTimer?.cancel();
+            _reconnectTimer = null;
+            Future.delayed(const Duration(seconds: 5), connect);
+          }
         },
         onError: (error) {
-          debugPrint('❌ WebSocket error: $error. Reconnecting in 5s...');
-          _channel = null;
-          Future.delayed(const Duration(seconds: 5), connect);
+          if (_shouldReconnect) {
+            debugPrint('❌ WebSocket error: $error. Reconnecting in 5s...');
+            _channel = null;
+            _reconnectTimer?.cancel();
+            _reconnectTimer = null;
+            Future.delayed(const Duration(seconds: 5), connect);
+          }
         },
       );
     } catch (e) {
-      debugPrint('❌ WebSocket connection error: $e. Reconnecting in 5s...');
-      _channel = null;
-      Future.delayed(const Duration(seconds: 5), connect);
+      if (_shouldReconnect) {
+        debugPrint('❌ WebSocket connection error: $e. Reconnecting in 5s...');
+        _channel = null;
+        _reconnectTimer?.cancel();
+        _reconnectTimer = null;
+        Future.delayed(const Duration(seconds: 5), connect);
+      }
     }
   }
 
@@ -68,12 +83,19 @@ class WebSocketService {
     if (_channel != null) {
       _channel!.sink.add(msg);
     } else {
-      _queue.add(msg);
-      connect();
+      // Only queue if we intend to reconnect; otherwise drop
+      if (_shouldReconnect) {
+        _queue.add(msg);
+        connect();
+      }
     }
   }
 
   static void disconnect() {
+    _shouldReconnect = false;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _queue.clear();
     _channel?.sink.close();
     _channel = null;
   }

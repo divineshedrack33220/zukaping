@@ -57,6 +57,9 @@ var (
     loginLimiter     = NewIPRateLimiter(10, time.Minute)
     signupLimiter    = NewIPRateLimiter(5, time.Minute)
     adminLoginLimiter = NewIPRateLimiter(5, time.Minute)
+    // Codes cost money to send, so requests are throttled far harder than login.
+    otpRequestLimiter = NewIPRateLimiter(3, 5*time.Minute)
+    otpVerifyLimiter  = NewIPRateLimiter(10, time.Minute)
 )
 
 func RateLimitMiddleware() gin.HandlerFunc {
@@ -104,6 +107,32 @@ func AdminLoginRateLimitMiddleware() gin.HandlerFunc {
 		if !adminLoginLimiter.Allow(ip) {
 			metrics.IncRateLimitExceeded()
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many login attempts, please try again later"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func OTPRequestRateLimitMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := c.ClientIP()
+		if !otpRequestLimiter.Allow(ip) {
+			metrics.IncRateLimitExceeded()
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many code requests, please try again in a few minutes"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func OTPVerifyRateLimitMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := c.ClientIP()
+		if !otpVerifyLimiter.Allow(ip) {
+			metrics.IncRateLimitExceeded()
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many code attempts, please try again later"})
 			c.Abort()
 			return
 		}

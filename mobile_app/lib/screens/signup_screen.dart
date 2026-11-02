@@ -76,6 +76,40 @@ class _SignupScreenState extends State<SignupScreen> {
     return emailRegex.hasMatch(email);
   }
 
+  /// Mirrors validateStrongPassword in backend/pkg/validation/validation.go.
+  /// Returns a user-facing reason, or null when the password is acceptable.
+  String? _passwordProblem(String password) {
+    const minLength = 8;
+    if (password.runes.length < minLength) {
+      return 'Password must be at least $minLength characters';
+    }
+    final missing = <String>[];
+    if (!RegExp(r'\p{Lu}', unicode: true).hasMatch(password)) {
+      missing.add('an uppercase letter');
+    }
+    if (!RegExp(r'\p{Ll}', unicode: true).hasMatch(password)) {
+      missing.add('a lowercase letter');
+    }
+    if (!RegExp(r'\p{Nd}', unicode: true).hasMatch(password)) {
+      missing.add('a number');
+    }
+    // Go treats punctuation and symbols as the "special" class.
+    if (!RegExp(r'[\p{P}\p{S}]', unicode: true).hasMatch(password)) {
+      missing.add('a special character');
+    }
+    if (missing.isEmpty) return null;
+    return 'Password must include ${missing.join(', ')}';
+  }
+
+  String _signupFailureMessage(dynamic body) {
+    final details = (body is Map && body['details'] is String) ? body['details'] as String : '';
+    if (details.contains('Password')) {
+      return 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number and a special character';
+    }
+    if (body is Map && body['error'] is String) return body['error'] as String;
+    return 'Signup failed';
+  }
+
   Future<void> _handleGoogleSignIn() async {
     setState(() {
       _isLoading = true;
@@ -139,9 +173,10 @@ class _SignupScreenState extends State<SignupScreen> {
       );
       return;
     }
-    if (_password.length < 6) {
+    final passwordProblem = _passwordProblem(_password);
+    if (passwordProblem != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 6 characters')),
+        SnackBar(content: Text(passwordProblem)),
       );
       return;
     }
@@ -172,7 +207,7 @@ class _SignupScreenState extends State<SignupScreen> {
       } else {
         final error = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error['error'] ?? 'Signup failed')),
+          SnackBar(content: Text(_signupFailureMessage(error))),
         );
       }
     } catch (e) {
@@ -839,7 +874,40 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  void _getLocation() async { }
+  void _getLocation() async {
+    // Request location permission if not already granted
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      if (!await Geolocator.checkPermission().then((p) => p.isWhenPermissionDenied)) {
+        // Permission denied - show message and continue without location
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission denied. Continue without location?')),
+          );
+        }
+        _latitude = null;
+        _longitude = null;
+        _nextScreen();
+        return;
+      }
+    }
+    
+    // Get current position with timeout
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+      });
+    } catch (e) {
+      debugPrint('Failed to get location: $e');
+      _latitude = null;
+      _longitude = null;
+      // Continue without location - user can deny
+    }
+    _nextScreen();
 
   Widget _buildScreen5() {
     final isDark = Theme.of(context).brightness == Brightness.dark;

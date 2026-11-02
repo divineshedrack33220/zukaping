@@ -23,6 +23,10 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
       - key: VAPID_PUBLIC_KEY
         sync: false
       - key: VAPID_PRIVATE_KEY
@@ -31,3 +35,17 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
+
+  - type: static
+    name: zukaping-web
+    rootDir: web_app
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://lemon16.onrender.com/api
+

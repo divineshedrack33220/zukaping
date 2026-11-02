@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"regexp"
 	"time"
 
 	"coded/database"
@@ -231,6 +232,17 @@ func Login(c *gin.Context) {
 	// Find user by email
 	var user models.User
 	err := usersColl.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
+	if err == mongo.ErrNoDocuments {
+		// Signup stores the lowercased email, but accounts created from the
+		// mobile client kept their original capitalisation, so an exact match
+		// would lock those users out. Retry without case sensitivity.
+		err = usersColl.FindOne(ctx, bson.M{
+			"email": bson.M{
+				"$regex":   "^" + regexp.QuoteMeta(req.Email) + "$",
+				"$options": "i",
+			},
+		}).Decode(&user)
+	}
 	if err == mongo.ErrNoDocuments {
 		log.Warn().Str("email", req.Email).Msg("User not found")
 		// Use same error message for security (don't reveal if email exists)

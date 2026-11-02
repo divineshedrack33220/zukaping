@@ -1,531 +1,564 @@
 package handlers
 
 import (
-    "context"
-    "encoding/json"
-    "log"
-    "net/http"
-    "time"
+	"context"
+	"encoding/json"
+	"log"
+	"net/http"
+	"time"
 
-    "coded/database"
-    "coded/models"
+	"coded/database"
+	"coded/models"
 
-    "github.com/gin-gonic/gin"
-    "go.mongodb.org/mongo-driver/bson"
-    "go.mongodb.org/mongo-driver/bson/primitive"
-    "go.mongodb.org/mongo-driver/mongo"
-    "github.com/SherClockHolmes/webpush-go"
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"github.com/SherClockHolmes/webpush-go"
 )
 
 func GetMessages(c *gin.Context) {
-    chatIDStr := c.Param("id")
-    chatID, err := primitive.ObjectIDFromHex(chatIDStr)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chat ID"})
-        return
-    }
+	chatIDStr := c.Param("id")
+	chatID, err := primitive.ObjectIDFromHex(chatIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chat ID"})
+		return
+	}
 
-    userIDStr := c.GetString("userId")
-    userID, err := primitive.ObjectIDFromHex(userIDStr)
-    if err != nil {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
-        return
-    }
+	userIDStr := c.GetString("userId")
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-    // First, verify user is in the chat
-    chatsColl := database.Client.Database("coded").Collection("chats")
-    var chat models.Chat
-    err = chatsColl.FindOne(ctx, bson.M{"_id": chatID, "participants": userID}).Decode(&chat)
-    if err == mongo.ErrNoDocuments {
-        c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to chat"})
-        return
-    }
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify chat access"})
-        return
-    }
+	// First, verify user is in the chat
+	chatsColl := database.Client.Database("coded").Collection("chats")
+	var chat models.Chat
+	err = chatsColl.FindOne(ctx, bson.M{"_id": chatID, "participants": userID}).Decode(&chat)
+	if err == mongo.ErrNoDocuments {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to chat"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify chat access"})
+		return
+	}
 
-    messagesColl := database.Client.Database("coded").Collection("messages")
-// Fetch messages with sender user data
-pipeline := mongo.Pipeline{
-    {{Key: "$match", Value: bson.D{{Key: "chatId", Value: chatID}}}},
-    {{Key: "$sort", Value: bson.D{{Key: "createdAt", Value: 1}}}},
-    {{Key: "$lookup", Value: bson.D{
-        {Key: "from", Value: "users"},
-        {Key: "localField", Value: "senderId"},
-        {Key: "foreignField", Value: "_id"},
-        {Key: "as", Value: "senderProfile"},
-    }}},
-    {{Key: "$unwind", Value: bson.D{
-        {Key: "path", Value: "$senderProfile"},
-        {Key: "preserveNullAndEmptyArrays", Value: true},
-    }}},
-}
+	messagesColl := database.Client.Database("coded").Collection("messages")
+	// Fetch messages with sender user data
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.D{{Key: "chatId", Value: chatID}}}},
+		{{Key: "$sort", Value: bson.D{{Key: "createdAt", Value: 1}}}},
+		{{Key: "$lookup", Value: bson.D{
+			{Key: "from", Value: "users"},
+			{Key: "localField", Value: "senderId"},
+			{Key: "foreignField", Value: "_id"},
+			{Key: "as", Value: "senderProfile"},
+		}}},
+		{{Key: "$unwind", Value: bson.D{
+			{Key: "path", Value: "$senderProfile"},
+			{Key: "preserveNullAndEmptyArrays", Value: true},
+		}}},
+	}
 
-    cursor, err := messagesColl.Aggregate(ctx, pipeline)
-    if err != nil {
-        log.Printf("GetMessages aggregate error: %v", err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
-        return
-    }
-    defer cursor.Close(ctx)
+	cursor, err := messagesColl.Aggregate(ctx, pipeline)
+	if err != nil {
+		log.Printf("GetMessages aggregate error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch messages"})
+		return
+	}
+	defer cursor.Close(ctx)
 
-    var rawMessages []bson.M
-    if err := cursor.All(ctx, &rawMessages); err != nil {
-        log.Printf("GetMessages decode error: %v", err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode messages"})
-        return
-    }
+	var rawMessages []bson.M
+	if err := cursor.All(ctx, &rawMessages); err != nil {
+		log.Printf("GetMessages decode error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode messages"})
+		return
+	}
 
-    // Build response with safe sender object (never null)
-    response := make([]map[string]interface{}, len(rawMessages))
-    for i, m := range rawMessages {
-        senderProfile := m["senderProfile"]
+	// Build response with safe sender object (never null)
+	response := make([]map[string]interface{}, len(rawMessages))
+	for i, m := range rawMessages {
+		senderProfile := m["senderProfile"]
 
-        // Safe-cast senderId: NilObjectID for system messages
-        senderIDStr := ""
-        if oid, ok := m["senderId"].(primitive.ObjectID); ok {
-            senderIDStr = oid.Hex()
-        }
+		// Safe-cast senderId: NilObjectID for system messages
+		senderIDStr := ""
+		if oid, ok := m["senderId"].(primitive.ObjectID); ok {
+			senderIDStr = oid.Hex()
+		}
 
-        senderMap := map[string]interface{}{
-            "id":     senderIDStr,
-            "name":   "Unknown",
-            "avatar": fallbackAvatar,
-        }
+		senderMap := map[string]interface{}{
+			"id":     senderIDStr,
+			"name":   "Unknown",
+			"avatar": fallbackAvatar,
+		}
 
-        if profile, ok := senderProfile.(bson.M); ok && profile != nil {
-            if name, _ := profile["name"].(string); name != "" {
-                senderMap["name"] = name
-            }
-            if avatar, _ := profile["avatar"].(string); avatar != "" {
-                senderMap["avatar"] = avatar
-            }
-        } else if msgType, _ := m["type"].(string); msgType == "system" {
-            senderMap["name"] = "System"
-            senderMap["avatar"] = fallbackAvatar
-        }
+		if profile, ok := senderProfile.(bson.M); ok && profile != nil {
+			if name, _ := profile["name"].(string); name != "" {
+				senderMap["name"] = name
+			}
+			if avatar, _ := profile["avatar"].(string); avatar != "" {
+				senderMap["avatar"] = avatar
+			}
+		} else if msgType, _ := m["type"].(string); msgType == "system" {
+			senderMap["name"] = "System"
+			senderMap["avatar"] = fallbackAvatar
+		}
 
-        // Read optional reply fields and reactions safely
-        var replyToIDStr string
-        if rID, ok := m["replyToId"].(string); ok {
-            replyToIDStr = rID
-        } else if rObjID, ok := m["replyToId"].(primitive.ObjectID); ok && rObjID != primitive.NilObjectID {
-            replyToIDStr = rObjID.Hex()
-        }
-        var replyToContentStr string
-        if rContent, ok := m["replyToContent"].(string); ok {
-            replyToContentStr = rContent
-        }
-        var replyToSenderNameStr string
-        if rSender, ok := m["replyToSenderName"].(string); ok {
-            replyToSenderNameStr = rSender
-        }
+		// Read optional reply fields and reactions safely
+		var replyToIDStr string
+		if rID, ok := m["replyToId"].(string); ok {
+			replyToIDStr = rID
+		} else if rObjID, ok := m["replyToId"].(primitive.ObjectID); ok && rObjID != primitive.NilObjectID {
+			replyToIDStr = rObjID.Hex()
+		}
+		var replyToContentStr string
+		if rContent, ok := m["replyToContent"].(string); ok {
+			replyToContentStr = rContent
+		}
+		var replyToSenderNameStr string
+		if rSender, ok := m["replyToSenderName"].(string); ok {
+			replyToSenderNameStr = rSender
+		}
 
-        // Safe-cast _id
-        msgIDStr := ""
-        if oid, ok := m["_id"].(primitive.ObjectID); ok {
-            msgIDStr = oid.Hex()
-        }
-        chatIDStr := ""
-        if oid, ok := m["chatId"].(primitive.ObjectID); ok {
-            chatIDStr = oid.Hex()
-        }
+		// Safe-cast _id
+		msgIDStr := ""
+		if oid, ok := m["_id"].(primitive.ObjectID); ok {
+			msgIDStr = oid.Hex()
+		}
+		chatIDStr := ""
+		if oid, ok := m["chatId"].(primitive.ObjectID); ok {
+			chatIDStr = oid.Hex()
+		}
 
-        response[i] = map[string]interface{}{
-            "id":                msgIDStr,
-            "chatId":            chatIDStr,
-            "senderId":          senderIDStr,
-            "sender":            senderMap,
-            "content":           m["content"],
-            "type":              m["type"],
-            "isRead":            m["isRead"],
-            "createdAt":         m["createdAt"],
-            "replyToId":         replyToIDStr,
-            "replyToContent":    replyToContentStr,
-            "replyToSenderName": replyToSenderNameStr,
-            "reactions":         m["reactions"],
-        }
-    }
+		response[i] = map[string]interface{}{
+			"id":                msgIDStr,
+			"chatId":            chatIDStr,
+			"senderId":          senderIDStr,
+			"sender":            senderMap,
+			"content":           m["content"],
+			"type":              m["type"],
+			"isRead":            m["isRead"],
+			"createdAt":         m["createdAt"],
+			"replyToId":         replyToIDStr,
+			"replyToContent":    replyToContentStr,
+			"replyToSenderName": replyToSenderNameStr,
+			"reactions":         m["reactions"],
+		}
+	}
 
-    c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, response)
 }
 
 func SendMessage(c *gin.Context) {
-    var req struct {
-        ChatID            string `json:"chatId" binding:"required"`
-        Content           string `json:"content" binding:"required"`
-        Type              string `json:"type,omitempty"`
-        ReplyToID         string `json:"replyToId,omitempty"`
-        ReplyToContent    string `json:"replyToContent,omitempty"`
-        ReplyToSenderName string `json:"replyToSenderName,omitempty"`
-    }
+	var req struct {
+		ChatID            string `json:"chatId" binding:"required"`
+		Content           string `json:"content" binding:"required"`
+		Type              string `json:"type,omitempty"`
+		ReplyToID         string `json:"replyToId,omitempty"`
+		ReplyToContent    string `json:"replyToContent,omitempty"`
+		ReplyToSenderName string `json:"replyToSenderName,omitempty"`
+	}
 
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-    userIDStr := c.GetString("userId")
-    userID, err := primitive.ObjectIDFromHex(userIDStr)
-    if err != nil {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
-        return
-    }
+	userIDStr := c.GetString("userId")
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
 
-    chatID, err := primitive.ObjectIDFromHex(req.ChatID)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chat ID"})
-        return
-    }
+	chatID, err := primitive.ObjectIDFromHex(req.ChatID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chat ID"})
+		return
+	}
 
-    if req.Type == "" {
-        req.Type = "text"
-    }
+	if req.Type == "" {
+		req.Type = "text"
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-    // Verify user is in the chat
-    chatsColl := database.Client.Database("coded").Collection("chats")
-    var chat models.Chat
-    err = chatsColl.FindOne(ctx, bson.M{"_id": chatID, "participants": userID}).Decode(&chat)
-    if err == mongo.ErrNoDocuments {
-        c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to chat"})
-        return
-    }
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify chat access"})
-        return
-    }
+	// Verify user is in the chat
+	chatsColl := database.Client.Database("coded").Collection("chats")
+	var chat models.Chat
+	err = chatsColl.FindOne(ctx, bson.M{"_id": chatID, "participants": userID}).Decode(&chat)
+	if err == mongo.ErrNoDocuments {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to chat"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify chat access"})
+		return
+	}
 
-    messagesColl := database.Client.Database("coded").Collection("messages")
+	messagesColl := database.Client.Database("coded").Collection("messages")
 
-    message := models.Message{
-        ID:                primitive.NewObjectID(),
-        ChatID:            chatID,
-        SenderID:          userID,
-        Content:           req.Content,
-        Type:              req.Type,
-        IsRead:            false,
-        CreatedAt:         time.Now().Unix(),
-        ReplyToID:         req.ReplyToID,
-        ReplyToContent:    req.ReplyToContent,
-        ReplyToSenderName: req.ReplyToSenderName,
-    }
+	message := models.Message{
+		ID:                primitive.NewObjectID(),
+		ChatID:            chatID,
+		SenderID:          userID,
+		Content:           req.Content,
+		Type:              req.Type,
+		IsRead:            false,
+		CreatedAt:         time.Now().Unix(),
+		ReplyToID:         req.ReplyToID,
+		ReplyToContent:    req.ReplyToContent,
+		ReplyToSenderName: req.ReplyToSenderName,
+	}
 
-    _, err = messagesColl.InsertOne(ctx, message)
-    if err != nil {
-        log.Printf("SendMessage insert error: %v", err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send message"})
-        return
-    }
+	_, err = messagesColl.InsertOne(ctx, message)
+	if err != nil {
+		log.Printf("SendMessage insert error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send message"})
+		return
+	}
 
-    // Update chat's last message
-    _, err = chatsColl.UpdateOne(
-        ctx,
-        bson.M{"_id": chatID},
-        bson.M{
-            "$set": bson.M{
-                "lastMessage":   req.Content,
-                "lastMessageAt": message.CreatedAt,
-            },
-        },
-    )
-    if err != nil {
-        log.Printf("Update chat lastMessage error: %v", err)
-        // Not critical – message was already saved
-    }
+	// Update chat's last message
+	_, err = chatsColl.UpdateOne(
+		ctx,
+		bson.M{"_id": chatID},
+		bson.M{
+			"$set": bson.M{
+				"lastMessage":   req.Content,
+				"lastMessageAt": message.CreatedAt,
+			},
+		},
+	)
+	if err != nil {
+		log.Printf("Update chat lastMessage error: %v", err)
+		// Not critical – message was already saved
+	}
 
-    // Get sender info for WebSocket broadcast
-    usersColl := database.Client.Database("coded").Collection("users")
-    var sender models.User
-    usersColl.FindOne(ctx, bson.M{"_id": userID}).Decode(&sender)
+	// Get sender info for WebSocket broadcast
+	usersColl := database.Client.Database("coded").Collection("users")
+	var sender models.User
+	usersColl.FindOne(ctx, bson.M{"_id": userID}).Decode(&sender)
 
-    // Prepare WebSocket message
-    wsMessage := map[string]interface{}{
-        "id":        message.ID.Hex(),
-        "chatId":    message.ChatID.Hex(),
-        "senderId":  message.SenderID.Hex(),
-        "sender": map[string]interface{}{
-            "id":     sender.ID.Hex(),
-            "name":   sender.Name,
-            "avatar": sender.Avatar,
-        },
-        "content":           message.Content,
-        "type":              message.Type,
-        "isRead":            message.IsRead,
-        "createdAt":         message.CreatedAt,
-        "replyToId":         req.ReplyToID,
-        "replyToContent":    req.ReplyToContent,
-        "replyToSenderName": req.ReplyToSenderName,
-    }
+	// Prepare WebSocket message
+	wsMessage := map[string]interface{}{
+		"id":        message.ID.Hex(),
+		"chatId":    message.ChatID.Hex(),
+		"senderId":  message.SenderID.Hex(),
+		"sender": map[string]interface{}{
+			"id":     sender.ID.Hex(),
+			"name":   sender.Name,
+			"avatar": sender.Avatar,
+		},
+		"content":           message.Content,
+		"type":              message.Type,
+		"isRead":            message.IsRead,
+		"createdAt":         message.CreatedAt,
+		"replyToId":         req.ReplyToID,
+		"replyToContent":    req.ReplyToContent,
+		"replyToSenderName": req.ReplyToSenderName,
+	}
 
-    // Broadcast via WebSocket (only to chat participants for privacy)
-    if wsManager != nil {
-        wsManager.BroadcastChatMessage(message.ChatID.Hex(), wsMessage)
-    }
+	// Broadcast via WebSocket (only to chat participants for privacy)
+	if wsManager != nil {
+		wsManager.BroadcastChatMessage(message.ChatID.Hex(), wsMessage)
+	}
 
-    // Send push notification to the other participant(s)
-    go func() {
-        defer func() {
-            if r := recover(); r != nil {
-                log.Printf("Panic in push notification: %v", r)
-            }
-        }()
+	// Send push notification to the other participant(s)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Panic in push notification: %v", r)
+			}
+		}()
 
-        subsColl := database.Client.Database("coded").Collection("subscriptions")
+		subsColl := database.Client.Database("coded").Collection("subscriptions")
 
-        for _, participantID := range chat.Participants {
-            if participantID == userID {
-                continue // Skip sender
-            }
+		for _, participantID := range chat.Participants {
+			if participantID == userID {
+				continue // Skip sender
+			}
 
-            // Find subscription
-            var sub PushSubscription
-            err := subsColl.FindOne(context.Background(), bson.M{"userId": participantID}).Decode(&sub)
-            if err == mongo.ErrNoDocuments {
-                continue // No subscription
-            }
-            if err != nil {
-                log.Printf("Failed to find subscription: %v", err)
-                continue
-            }
+			// Find subscription
+			var sub PushSubscription
+			err := subsColl.FindOne(context.Background(), bson.M{"userId": participantID}).Decode(&sub)
+			if err == mongo.ErrNoDocuments {
+				continue // No subscription
+			}
+			if err != nil {
+				log.Printf("Failed to find subscription: %v", err)
+				continue
+			}
 
-            // Create webpush subscription from stored data
-            webpushSub := &webpush.Subscription{
-                Endpoint: sub.Endpoint,
-                Keys: webpush.Keys{
-                    P256dh: sub.Keys.P256dh,
-                    Auth:   sub.Keys.Auth,
-                },
-            }
+			// Create webpush subscription from stored data
+			webpushSub := &webpush.Subscription{
+				Endpoint: sub.Endpoint,
+				Keys: webpush.Keys{
+					P256dh: sub.Keys.P256dh,
+					Auth:   sub.Keys.Auth,
+				},
+			}
 
-            payload := map[string]interface{}{
-                "title": sender.Name + " sent a message",
-                "body":  req.Content,
-                "icon":  sender.Avatar,
-            }
-            payloadBytes, err := json.Marshal(payload)
-            if err != nil {
-                log.Printf("Failed to marshal push payload: %v", err)
-                continue
-            }
+			payload := map[string]interface{}{
+				"title": sender.Name + " sent a message",
+				"body":  req.Content,
+				"icon":  sender.Avatar,
+			}
+			payloadBytes, err := json.Marshal(payload)
+			if err != nil {
+				log.Printf("Failed to marshal push payload: %v", err)
+				continue
+			}
 
-            // Send push
-            _, err = webpush.SendNotification(payloadBytes, webpushSub, &webpush.Options{
-                Subscriber:      "mailto:admin@coded.com",
-                VAPIDPrivateKey: vapidPrivateKey,
-                TTL:             30,
-            })
-            if err != nil {
-                log.Printf("Failed to send push to user %s: %v", participantID.Hex(), err)
-            } else {
-                log.Printf("Push notification sent to user: %s", participantID.Hex())
-            }
-        }
-    }()
+			// Send push
+			_, err = webpush.SendNotification(payloadBytes, webpushSub, &webpush.Options{
+				Subscriber:      "mailto:admin@coded.com",
+				VAPIDPrivateKey: vapidPrivateKey,
+				TTL:             30,
+			})
+			if err != nil {
+				log.Printf("Failed to send push to user %s: %v", participantID.Hex(), err)
+			} else {
+				log.Printf("Push notification sent to user: %s", participantID.Hex())
+			}
+		}
+	}()
 
-    c.JSON(http.StatusCreated, gin.H{
-        "message": "Message sent",
-        "id":      message.ID.Hex(),
-    })
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Message sent",
+		"id":      message.ID.Hex(),
+	})
 }
 
 func MarkAsRead(c *gin.Context) {
-    messageIDStr := c.Param("id")
-    messageID, err := primitive.ObjectIDFromHex(messageIDStr)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID"})
-        return
-    }
+	messageIDStr := c.Param("id")
+	messageID, err := primitive.ObjectIDFromHex(messageIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID"})
+		return
+	}
 
-    userIDStr := c.GetString("userId")
-    userID, err := primitive.ObjectIDFromHex(userIDStr)
-    if err != nil {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
-        return
-    }
+	userIDStr := c.GetString("userId")
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-    messagesColl := database.Client.Database("coded").Collection("messages")
+	messagesColl := database.Client.Database("coded").Collection("messages")
 
-    // Get the chat ID from the message and verify access
-    var msg models.Message
-    err = messagesColl.FindOne(ctx, bson.M{"_id": messageID}).Decode(&msg)
-    if err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
-        return
-    }
+	// Get the chat ID from the message and verify access
+	var msg models.Message
+	err = messagesColl.FindOne(ctx, bson.M{"_id": messageID}).Decode(&msg)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
 
-    chatsColl := database.Client.Database("coded").Collection("chats")
-    count, err := chatsColl.CountDocuments(ctx, bson.M{"_id": msg.ChatID, "participants": userID})
-    if err != nil || count == 0 {
-        c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to chat"})
-        return
-    }
+	chatsColl := database.Client.Database("coded").Collection("chats")
+	count, err := chatsColl.CountDocuments(ctx, bson.M{"_id": msg.ChatID, "participants": userID})
+	if err != nil || count == 0 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to chat"})
+		return
+	}
 
-    // Mark all unread messages from the partner in this chat as read
-    result, err := messagesColl.UpdateMany(
-        ctx,
-        bson.M{
-            "chatId":   msg.ChatID,
-            "senderId": bson.M{"$ne": userID},
-            "isRead":   false,
-        },
-        bson.M{"$set": bson.M{"isRead": true}},
-    )
-    if err != nil {
-        log.Printf("MarkAsRead error: %v", err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark as read"})
-        return
-    }
+	// Mark all unread messages from the partner in this chat as read
+	result, err := messagesColl.UpdateMany(
+		ctx,
+		bson.M{
+			"chatId":   msg.ChatID,
+			"senderId": bson.M{"$ne": userID},
+			"isRead":   false,
+		},
+		bson.M{"$set": bson.M{"isRead": true}},
+	)
+	if err != nil {
+		log.Printf("MarkAsRead error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark as read"})
+		return
+	}
 
-    // Broadcast read receipt via WebSocket — just send chatId + readerId
-    // (no need to re-fetch all read messages; the client knows to mark all as read)
-    if wsManager != nil && result.ModifiedCount > 0 {
-        wsReadReceipt := map[string]interface{}{
-            "chatId":    msg.ChatID.Hex(),
-            "userId":    userID.Hex(),
-            "timestamp": time.Now().Unix(),
-        }
-        wsManager.BroadcastMessageRead(wsReadReceipt)
-    }
+	// Broadcast read receipt via WebSocket — just send chatId + readerId
+	// (no need to re-fetch all read messages; the client knows to mark all as read)
+	if wsManager != nil && result.ModifiedCount > 0 {
+		wsReadReceipt := map[string]interface{}{
+			"chatId":    msg.ChatID.Hex(),
+			"userId":    userID.Hex(),
+			"timestamp": time.Now().Unix(),
+		}
+		wsManager.BroadcastMessageRead(wsReadReceipt)
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "message":      "Marked as read",
-        "updatedCount": result.ModifiedCount,
-    })
+	c.JSON(http.StatusOK, gin.H{
+		"message":      "Marked as read",
+		"updatedCount": result.ModifiedCount,
+	})
 }
 
 // New function to send typing indicator via WebSocket
 func SendTypingIndicator(c *gin.Context) {
-    var req struct {
-        ChatID string `json:"chatId" binding:"required"`
-        Typing bool   `json:"typing"`
-    }
+	var req struct {
+		ChatID string `json:"chatId" binding:"required"`
+		Typing bool   `json:"typing"`
+	}
 
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-    userIDStr := c.GetString("userId")
-    userID, err := primitive.ObjectIDFromHex(userIDStr)
-    if err != nil {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
-        return
-    }
+	userIDStr := c.GetString("userId")
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
 
-    chatID, err := primitive.ObjectIDFromHex(req.ChatID)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chat ID"})
-        return
-    }
+	chatID, err := primitive.ObjectIDFromHex(req.ChatID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chat ID"})
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-    // Verify user is in the chat
-    chatsColl := database.Client.Database("coded").Collection("chats")
-    count, err := chatsColl.CountDocuments(ctx, bson.M{"_id": chatID, "participants": userID})
-    if err != nil || count == 0 {
-        c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to chat"})
-        return
-    }
+	// Verify user is in the chat
+	chatsColl := database.Client.Database("coded").Collection("chats")
+	count, err := chatsColl.CountDocuments(ctx, bson.M{"_id": chatID, "participants": userID})
+	if err != nil || count == 0 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to chat"})
+		return
+	}
 
-    // Broadcast typing indicator via WebSocket
-    if wsManager != nil {
-        typingMsg := map[string]interface{}{
-            "chatId":    chatID.Hex(),
-            "userId":    userID.Hex(),
-            "typing":    req.Typing,
-            "timestamp": time.Now().Unix(),
-        }
-        
-        if req.Typing {
-            wsManager.BroadcastTypingStart(typingMsg)
-        } else {
-            wsManager.BroadcastTypingEnd(typingMsg)
-        }
-    }
+	// Broadcast typing indicator via WebSocket
+	if wsManager != nil {
+		typingMsg := map[string]interface{}{
+			"chatId":    chatID.Hex(),
+			"userId":    userID.Hex(),
+			"typing":    req.Typing,
+			"timestamp": time.Now().Unix(),
+		}
+		
+		if req.Typing {
+			wsManager.BroadcastTypingStart(typingMsg)
+		} else {
+			wsManager.BroadcastTypingEnd(typingMsg)
+		}
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "message": "Typing indicator sent",
-        "typing":  req.Typing,
-    })
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Typing indicator sent",
+		"typing":  req.Typing,
+	})
 }
 
 func ReactToMessage(c *gin.Context) {
-    messageIDStr := c.Param("id")
-    messageID, err := primitive.ObjectIDFromHex(messageIDStr)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID"})
-        return
-    }
+	messageIDStr := c.Param("id")
+	messageID, err := primitive.ObjectIDFromHex(messageIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message ID"})
+		return
+	}
 
-    var req struct {
-        Emoji string `json:"emoji" binding:"required"`
-    }
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
+	var req struct {
+		Emoji string `json:"emoji" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-    userIDStr := c.GetString("userId")
-    userID, err := primitive.ObjectIDFromHex(userIDStr)
-    if err != nil {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
-        return
-    }
+	userIDStr := c.GetString("userId")
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-    messagesColl := database.Client.Database("coded").Collection("messages")
-    
-    // Update the reaction
-    update := bson.M{
-        "$set": bson.M{
-            "reactions." + userID.Hex(): req.Emoji,
-        },
-    }
-    
-    // If emoji is empty or "remove", remove it
-    if req.Emoji == "" || req.Emoji == "remove" {
-        update = bson.M{
-            "$unset": bson.M{
-                "reactions." + userID.Hex(): "",
-            },
-        }
-    }
+	// First, verify user is in the chat by fetching the message and checking chat membership
+	messagesColl := database.Client.Database("coded").Collection("messages")
 
-    _, err = messagesColl.UpdateOne(ctx, bson.M{"_id": messageID}, update)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update reaction"})
-        return
-    }
+	// Fetch the message to get its chat ID
+	var msg models.Message
+	err = messagesColl.FindOne(ctx, bson.M{"_id": messageID}).Decode(&msg)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
 
-    // Get the updated message to broadcast
-    var updatedMsg models.Message
-    err = messagesColl.FindOne(ctx, bson.M{"_id": messageID}).Decode(&updatedMsg)
-    if err == nil && wsManager != nil {
-        wsManager.BroadcastMessageReaction(map[string]interface{}{
-            "messageId": updatedMsg.ID.Hex(),
-            "chatId":    updatedMsg.ChatID.Hex(),
-            "userId":    userID.Hex(),
-            "emoji":     req.Emoji,
-            "reactions": updatedMsg.Reactions,
-        })
-    }
+	// Verify user is a participant in the chat
+	chatsColl := database.Client.Database("coded").Collection("chats")
+	var chat models.Chat
+	err = chatsColl.FindOne(ctx, bson.M{"_id": msg.ChatID}).Decode(&chat)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "message":   "Reaction updated",
-        "reactions": updatedMsg.Reactions,
-    })
+	// Check if user is a participant
+	isParticipant := false
+	for _, pid := range chat.Participants {
+		if pid == userID {
+			isParticipant = true
+			break
+		}
+	}
+	if !isParticipant {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only chat participants can react to messages"})
+		return
+	}
+
+	// Update the reaction - use $set on the specific user's reaction
+	// Reactions store as map[string]string where key is user hex and value is emoji
+	// This naturally allows multiple reactions since each user has their own key
+	update := bson.M{
+		"$set": bson.M{
+			"reactions." + userID.Hex(): req.Emoji,
+		},
+	}
+
+	// If emoji is empty or "remove", remove it
+	if req.Emoji == "" || req.Emoji == "remove" {
+		update = bson.M{
+			"$unset": bson.M{
+				"reactions." + userID.Hex(): "",
+			},
+		}
+	}
+
+	_, err = messagesColl.UpdateOne(ctx, bson.M{"_id": messageID}, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update reaction"})
+		return
+	}
+
+	// Get the updated message to broadcast
+	var updatedMsg models.Message
+	err = messagesColl.FindOne(ctx, bson.M{"_id": messageID}).Decode(&updatedMsg)
+	if err == nil && wsManager != nil {
+		wsManager.BroadcastMessageReaction(map[string]interface{}{
+			"messageId": updatedMsg.ID.Hex(),
+			"chatId":    updatedMsg.ChatID.Hex(),
+			"userId":    userID.Hex(),
+			"emoji":     req.Emoji,
+			"reactions": updatedMsg.Reactions,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Reaction updated",
+		"reactions": updatedMsg.Reactions,
+	})
 }

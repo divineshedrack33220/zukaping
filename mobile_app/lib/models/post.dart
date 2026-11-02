@@ -7,7 +7,7 @@ class Post {
   final String content;
   final List<String> images;
   final String? category;
-  final double? distance;
+  final String? distance; // Changed from double? to String? - stores server's distance string
   final bool isFavorited;
   final String? userStatus;
   final DateTime createdAt;
@@ -21,7 +21,7 @@ class Post {
     required this.content,
     this.images = const [],
     this.category,
-    this.distance,
+    this.distance, // Now String? instead of double?
     this.isFavorited = false,
     this.userStatus,
     required this.createdAt,
@@ -56,7 +56,7 @@ class Post {
       content: json['content']?.toString() ?? '',
       images: (json['media'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       category: json['category']?.toString(),
-      distance: json['distance'] != null ? (json['distance'] is num ? (json['distance'] as num).toDouble() : double.tryParse(json['distance'].toString())) : null,
+      distance: json['distance']?.toString(), // Store server's distance string as-is
       isFavorited: false,
       userStatus: user?['status']?.toString() ?? json['status']?.toString(),
       createdAt: parseCreatedAt(json['createdAt']),

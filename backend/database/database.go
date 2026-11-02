@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,6 +21,14 @@ var (
 	Client *mongo.Client
 	DB     *mongo.Database
 )
+
+var credentialPattern = regexp.MustCompile(`//([^/@:]*):([^@/]*)@`)
+
+// redact keeps the database password out of the logs. Atlas connection strings
+// embed it directly, and ConnectDB prints the URI for every candidate it tries.
+func redact(text string) string {
+	return credentialPattern.ReplaceAllString(text, "//$1:xxxxx@")
+}
 
 func ConnectDB() error {
 	candidates := []string{}
@@ -47,8 +56,13 @@ func ConnectDB() error {
 		}
 		seen[mongoURI] = true
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// One budget for Connect and the Ping below. Atlas needs room for the
+		// SRV lookup plus a TLS handshake to every replica before the first
+		// operation, so 5 seconds reported "context deadline exceeded" against
+		// a cluster that a plain TCP test reaches fine.
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		clientOptions := options.Client().ApplyURI(mongoURI)
+		clientOptions.SetServerSelectionTimeout(15 * time.Second)
 		clientOptions.SetMaxPoolSize(100)
 		clientOptions.SetMinPoolSize(10)
 		clientOptions.SetMaxConnIdleTime(5 * time.Minute)
@@ -62,7 +76,7 @@ func ConnectDB() error {
 			Client = client
 			DB = client.Database("coded")
 
-			log.Printf("✅ Connected to MongoDB successfully via %s", mongoURI)
+			log.Printf("✅ Connected to MongoDB successfully via %s", redact(mongoURI))
 
 			// Create indexes
 			CreateIndexes()
@@ -74,11 +88,15 @@ func ConnectDB() error {
 		}
 
 		lastErr = err
-		log.Printf("⚠️ MongoDB connection failed for %s: %v", mongoURI, err)
+		log.Printf("⚠️ MongoDB connection failed for %s: %v", redact(mongoURI), redact(err.Error()))
 	}
 
 	// If all candidates fail, run in degraded mode (no DB)
-	log.Printf("⚠️ MongoDB unavailable, running in degraded mode: %v", lastErr)
+	if lastErr != nil {
+		log.Printf("⚠️ MongoDB unavailable, running in degraded mode: %v", redact(lastErr.Error()))
+	} else {
+		log.Printf("⚠️ MongoDB unavailable, running in degraded mode")
+	}
 	return nil // Don't return error, allow degraded mode
 }
 
@@ -197,15 +215,14 @@ func CreateIndexes() {
 		},
 	}
 
-	// Chats collection indexes - FIXED: Use unique name to avoid conflict
+	// Chats collection indexes
 	chatsColl := DB.Collection("chats")
 	chatsIndexes := []mongo.IndexModel{
+		// Must stay non-unique: participants is an array, and a unique index on an
+		// array rejects any chat that reuses a member, so a user could never join
+		// a second chat. CreateChat already looks for an existing pair.
 		{
 			Keys: bson.D{{Key: "participants", Value: 1}},
-			Options: options.Index().
-				SetUnique(true).
-				SetName("unique_participants").
-				SetPartialFilterExpression(bson.M{"participants.0": bson.M{"$exists": true}}),
 		},
 		{
 			Keys: bson.D{{Key: "lastMessageAt", Value: -1}},
