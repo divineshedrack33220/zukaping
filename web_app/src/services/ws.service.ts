@@ -6,25 +6,29 @@
  * - messages sent while disconnected are queued and flushed on connect
  * - reconnects automatically (3s) unless disconnect() was requested
  */
+import { activeServerBase } from './server-selector';
+
 type WsMessage = { type: string; payload: Record<string, any> };
 type Handler = (message: WsMessage) => void;
 
 const RECONNECT_DELAY = 3000;
 
+function toWsBase(apiBase: string): string {
+  // 'http' -> 'ws' leaves 'https' as 'wss'.
+  const asWs = apiBase.replace(/^http/, 'ws');
+  const path = asWs.replace(/\/api\/?$/, '/ws');
+  if (/^wss?:\/\//.test(path)) return path;
+  // A relative base ('/api' in dev) means the page's own origin, which Vite
+  // proxies to the same backend the selector picked.
+  const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${scheme}://${window.location.host}${path}`;
+}
+
 function buildUrl(token: string): string {
   const configured = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
-  let base: string;
-  if (configured) {
-    base = configured;
-  } else if (import.meta.env.DEV) {
-    const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    base = `${scheme}://${window.location.host}/ws`;
-  } else {
-    const apiBase =
-      (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
-      'https://lemon16.onrender.com/api';
-    base = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws').replace('/api', '/ws');
-  }
+  // Follow whichever backend /health proved, so chat never stays on a host the
+  // REST calls have already abandoned.
+  const base = configured || toWsBase(activeServerBase());
   return `${base}?token=${encodeURIComponent(token)}`;
 }
 

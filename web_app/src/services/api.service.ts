@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { ensureServer, recoverAfterFailure } from './server-selector';
 import {
   Chat,
   ChatParticipantProfile,
@@ -31,11 +32,11 @@ export type {
   UserProfile,
 };
 
-// Dev stays relative ("/api") so Vite proxies to the Go backend. Production
-// falls back to the live Render mirror.
-const configuredBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
-const baseUrl =
-  configuredBase ||
+// Where traffic goes before /health has proved anything. server-selector
+// replaces this the moment it knows better, so a page load is never blocked
+// waiting on a probe.
+const initialBase =
+  (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
   (import.meta.env.PROD ? 'https://lemon16.onrender.com/api' : '/api');
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -365,11 +366,15 @@ function normaliseExtendedUser(raw: any): ExtendedUserProfile {
 
 class ApiService {
   private axiosInstance: AxiosInstance;
-  readonly baseUrl = baseUrl;
+
+  /** Always the host traffic is going to right now, not the build-time guess. */
+  get baseUrl(): string {
+    return this.axiosInstance.defaults.baseURL as string;
+  }
 
   constructor() {
     this.axiosInstance = axios.create({
-      baseURL: baseUrl,
+      baseURL: initialBase,
       // Render free instances need time to wake from sleep.
       timeout: 45000,
       // No global Content-Type. A JSON default here silently converts every
@@ -425,6 +430,8 @@ class ApiService {
     attempt = 0,
     retry = true
   ): Promise<T> {
+    const server = await ensureServer();
+    this.axiosInstance.defaults.baseURL = server.base;
     try {
       const response = await this.axiosInstance.request<T>(config);
       return response.data;
@@ -437,7 +444,20 @@ class ApiService {
       // again and burn the rate limit that protects the mailbox.
       if ((retryable || networkError) && retry && attempt < 2) {
         await sleep(1500 * (attempt + 1));
+        // The first retry gives a sleeping instance more time; only a host that
+        // has failed twice gets re-probed against the others.
+        if (attempt >= 1) {
+          const next = await recoverAfterFailure(server.base);
+          if (next) this.axiosInstance.defaults.baseURL = next;
+        }
         return this.request<T>(config, attempt + 1, retry);
+      }
+      // Anything else that failed the way a *host* fails rather than the way a
+      // request does - a 5xx or no answer at all - gets the servers re-checked
+      // in the background so the next call lands somewhere alive. The failed
+      // call is never repeated here: a POST is not idempotent.
+      if (networkError || (typeof status === 'number' && status >= 500)) {
+        void recoverAfterFailure(server.base);
       }
       throw error;
     }

@@ -190,6 +190,27 @@ Client                    Backend
 4. Fallback: retry production with 4s timeout
 5. `switchServer()` toggles to next production URL on failure
 
+`web_app/src/services/server-selector.ts` does the same job for the React build,
+and every REST call plus the WebSocket follows wherever it lands:
+
+1. Candidates, highest preference first: the dev server's own `/api`, then
+   `VITE_API_URL` if set, then the last host that worked (localStorage), then the
+   Render services.
+2. All candidates are probed at once with a 3s timeout. "Healthy" means the
+   response parses as JSON the Go app produced — a sleeping or suspended Render
+   instance answers 502/503 with HTML, and a static-host rewrite answers 200 with
+   HTML, so a status code alone proves nothing.
+3. Nothing answering quickly is normal (Render's free tier needs >25s to wake), so
+   a second sweep runs with a 30s timeout before anything is concluded.
+4. A request that fails the way a *host* fails (5xx or no answer) re-runs the probe
+   and moves to whichever backend is alive; the winner is remembered and the user
+   sees "Connected to <host> instead". Non-idempotent calls — sending a reset code —
+   are never retried or moved.
+
+Probing `/health` cross-origin is blocked on the build currently deployed to
+Render, which returns no CORS headers for that one path, so the probe leads with
+`/vapid-public-key` and treats `/health` as confirmation.
+
 ---
 
 ## Push Notifications
