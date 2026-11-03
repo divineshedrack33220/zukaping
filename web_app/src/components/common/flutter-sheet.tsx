@@ -21,7 +21,7 @@ export const FlutterSheet = ({
   onClose,
   children,
   radius = 24,
-  maxHeight = '92dvh',
+  maxHeight = 'calc(var(--app-h, 100dvh) * 0.92)',
   background,
   padding,
   handle = true,

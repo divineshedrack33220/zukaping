@@ -216,7 +216,7 @@ export const LoginScreen = () => {
     <Box
       sx={{
         flex: 1,
-        minHeight: '100dvh',
+        minHeight: 'var(--app-h, 100dvh)',
         bgcolor: c.scaffold,
         display: 'flex',
         flexDirection: 'column',

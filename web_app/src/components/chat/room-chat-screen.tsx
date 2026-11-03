@@ -17,6 +17,7 @@ import { isImageMessage, parseImageUrls } from '../../utils/messages';
 import { ConfirmDialog } from '../common/confirm-dialog';
 import { useImageSourceSheet } from '../common/image-source-sheet';
 import { FullScreenViewer } from '../common/fullscreen-viewer';
+import { onViewportShrink } from '../../utils/viewport';
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -224,6 +225,8 @@ export const RoomChatScreen = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages.length, typing, scrollToBottom]);
+  // A keyboard that shrinks the shell must not strand the newest message under it.
+  useEffect(() => onViewportShrink(scrollToBottom), [scrollToBottom]);
 
   /* ---------------------------- websocket ---------------------------- */
 
@@ -393,7 +396,7 @@ export const RoomChatScreen = () => {
   const sendDisabled = sending || !text.trim();
 
   return (
-    <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: c.isDark ? '#121212' : '#F8F9FA', overflow: 'hidden', position: 'relative' }}>
+    <Box sx={{ height: 'var(--app-h, 100dvh)', display: 'flex', flexDirection: 'column', bgcolor: c.isDark ? '#121212' : '#F8F9FA', overflow: 'hidden', position: 'relative' }}>
       {/* app bar */}
       <Box
         component="header"

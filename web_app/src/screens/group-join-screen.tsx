@@ -221,7 +221,7 @@ export const GroupJoinScreen: React.FC = () => {
   );
 
   return (
-    <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box sx={{ height: 'var(--app-h, 100dvh)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <FlutterAppBar showBack title="Group Invitation" />
       {isLoading ? (
         renderLoading()

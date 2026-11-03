@@ -7,6 +7,7 @@ import { Message } from '../../models/chat.models';
 import {
   emojiFontSize,
   isImageMessage,
+  isOnlyEmoji,
   parseImageUrls,
   senderColor,
 } from '../../utils/messages';
@@ -183,10 +184,17 @@ export const MessageBubble = ({
   const triggered = useRef(false);
 
   const images = isImageMessage(message) ? parseImageUrls(message.content) : [];
-  const isEmoji = message.type === 'emoji' || (!images.length && message.type !== 'image' && false);
   const content = message.content ?? '';
+  // Older and mobile-sent messages arrive as plain text even when they are
+  // nothing but emoji, so the size/bubble treatment keys off the content too.
+  const isEmoji =
+    message.type === 'emoji' || (!images.length && message.type !== 'image' && isOnlyEmoji(content));
   const quotedSender = message.replyToSenderName ?? 'Partner';
   const reactions = message.reactions ? Object.values(message.reactions) : [];
+  // A lone emoji reads better bare than boxed in a bubble that is mostly empty
+  // padding; its reaction then sits under it instead of clipping the corner.
+  const bareEmoji = isEmoji && images.length === 0 && !message.replyToId && !(showSender && !isMe);
+  const reactionHangsBelow = bareEmoji && reactions.length > 0;
 
   const onTouchStart = (event: React.TouchEvent) => {
     startX.current = event.touches[0]?.clientX ?? null;
@@ -235,7 +243,7 @@ export const MessageBubble = ({
         justifyContent: isMe ? 'flex-end' : 'flex-start',
         position: 'relative',
         width: '100%',
-        mb: '12px',
+        mb: reactionHangsBelow ? '22px' : '12px',
         mt: '4px',
       }}
     >
@@ -282,21 +290,26 @@ export const MessageBubble = ({
       >
         <Box
           sx={{
-            p: '10px 16px',
-            background: isMe ? '#026AFD' : undefined,
-            // Received bubbles deliberately blend into the chat backdrop
-            // (#121212 / #F8F9FA) instead of Flutter's lifted #1C1C1E; a
-            // hairline rim keeps the bubble shape readable once the fill matches.
-            bgcolor: isMe ? undefined : c.isDark ? '#121212' : '#F8F9FA',
-            border: isMe
-              ? undefined
-              : `1px solid ${c.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'}`,
+            p: bareEmoji ? 0 : '10px 16px',
+            background: isMe && !bareEmoji ? '#026AFD' : undefined,
+            // Received bubbles need to lift off the chat backdrop (#121212 /
+            // #F8F9FA); matching the backdrop left only a hairline rim, which
+            // reads as an empty outlined box on short messages.
+            bgcolor: isMe || bareEmoji ? undefined : c.isDark ? '#1C1C1E' : '#FFFFFF',
+            border:
+              isMe || bareEmoji
+                ? undefined
+                : `1px solid ${c.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}`,
             borderRadius: '20px',
             borderBottomLeftRadius: isMe ? '20px' : '4px',
             borderBottomRightRadius: isMe ? '4px' : '20px',
-            boxShadow: isMe
+            boxShadow: bareEmoji
+              ? 'none'
+              : isMe
               ? '0 6px 12px rgba(2,106,253,0.2), inset 0 -1px 0 -1px rgba(255,255,255,0.2)'
-              : '0 6px 12px rgba(0,0,0,0.04)',
+              : c.isDark
+              ? '0 4px 14px rgba(0,0,0,0.45)'
+              : '0 2px 8px rgba(0,0,0,0.06)',
             minWidth: 0,
           }}
         >
@@ -391,7 +404,9 @@ export const MessageBubble = ({
           <Box
             sx={{
               position: 'absolute',
-              bottom: -4,
+              bottom: reactionHangsBelow ? 'auto' : -4,
+              top: reactionHangsBelow ? '100%' : 'auto',
+              marginTop: reactionHangsBelow ? '2px' : 0,
               right: isMe ? 4 : 'auto',
               left: isMe ? 'auto' : 4,
               p: '4px',

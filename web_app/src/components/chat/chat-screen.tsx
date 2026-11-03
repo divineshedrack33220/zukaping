@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, CircularProgress, Dialog } from '@mui/material';
+import { Box, CircularProgress, Dialog, useMediaQuery } from '@mui/material';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
@@ -42,6 +42,7 @@ import { FlutterSheet } from '../common/flutter-sheet';
 import { ConfirmDialog } from '../common/confirm-dialog';
 import { FullScreenViewer } from '../common/fullscreen-viewer';
 import { useImageSourceSheet } from '../common/image-source-sheet';
+import { onViewportShrink } from '../../utils/viewport';
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -274,7 +275,7 @@ const ReactionSheet = ({
       radius={30}
       handle={false}
       background={c.isDark ? '#1C1C1E' : '#FFFFFF'}
-      maxHeight="60dvh"
+      maxHeight="calc(var(--app-h, 100dvh) * 0.60)"
     >
       <Box sx={{ p: '20px 24px' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-around', py: '8px' }}>
@@ -387,11 +388,11 @@ const GroupInfoSheet = ({
         open={open}
         onClose={onClose}
         handle={false}
-        maxHeight="85dvh"
+        maxHeight="calc(var(--app-h, 100dvh) * 0.85)"
         background={c.isDark ? '#1C1C1E' : '#FFFFFF'}
         padding={0}
       >
-        <Box sx={{ height: '85dvh', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ height: 'calc(var(--app-h, 100dvh) * 0.85)', display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ height: 12, flexShrink: 0 }} />
           <Box
             sx={{
@@ -785,11 +786,11 @@ const EditGroupSheet = ({
       open={open}
       onClose={onClose}
       handle={false}
-      maxHeight="80dvh"
+      maxHeight="calc(var(--app-h, 100dvh) * 0.80)"
       background={c.isDark ? '#1C1C1E' : '#FFFFFF'}
       padding={0}
     >
-      <Box sx={{ height: '80dvh', px: '20px', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ height: 'calc(var(--app-h, 100dvh) * 0.80)', px: '20px', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ height: 12 }} />
         <Box
           sx={{
@@ -978,11 +979,11 @@ const AddMembersSheet = ({
       open={open}
       onClose={onClose}
       handle={false}
-      maxHeight="75dvh"
+      maxHeight="calc(var(--app-h, 100dvh) * 0.75)"
       background={c.isDark ? '#1C1C1E' : '#FFFFFF'}
       padding={0}
     >
-      <Box sx={{ height: '75dvh', display: 'flex', flexDirection: 'column', px: '20px' }}>
+      <Box sx={{ height: 'calc(var(--app-h, 100dvh) * 0.75)', display: 'flex', flexDirection: 'column', px: '20px' }}>
         <Box sx={{ height: 12 }} />
         <Box
           sx={{
@@ -1120,6 +1121,7 @@ export const ChatScreen = () => {
   const { chatId } = useParams<{ chatId: string }>();
   const navigate = useNavigate();
   const c = usePalette();
+  const narrow = useMediaQuery('(max-width: 380px)');
   const { userId } = useAuth();
   const { me } = useMe();
   const { showToast } = useSnackbar();
@@ -1200,6 +1202,8 @@ export const ChatScreen = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages.length, typing, scrollToBottom]);
+  // A keyboard that shrinks the shell must not strand the newest message under it.
+  useEffect(() => onViewportShrink(scrollToBottom), [scrollToBottom]);
 
   /* ------------------------------ websocket ------------------------------ */
 
@@ -1605,7 +1609,7 @@ export const ChatScreen = () => {
   return (
     <Box
       sx={{
-        height: '100dvh',
+        height: 'var(--app-h, 100dvh)',
         display: 'flex',
         flexDirection: 'column',
         bgcolor: c.isDark ? '#121212' : '#F8F9FA',
@@ -2109,7 +2113,7 @@ export const ChatScreen = () => {
               maxHeight: 150,
               borderRadius: '23px',
               bgcolor: c.isDark ? 'rgba(28,28,30,0.8)' : 'rgba(240,242,245,0.8)',
-              p: '11px 16px',
+              p: narrow ? '11px 12px' : '11px 16px',
               display: 'flex',
               alignItems: 'center',
             }}
@@ -2127,7 +2131,7 @@ export const ChatScreen = () => {
                   handleSend();
                 }
               }}
-              placeholder="Type a message..."
+              placeholder={narrow ? 'Message…' : 'Type a message...'}
               sx={{
                 width: '100%',
                 border: 'none',
@@ -2144,14 +2148,14 @@ export const ChatScreen = () => {
               }}
             />
           </Box>
-          <Box sx={{ width: 8 }} />
+          <Box sx={{ width: narrow ? 4 : 8 }} />
           <Box
             role="button"
             aria-label="Send"
             onClick={handleSend}
             sx={{
-              width: 42,
-              height: 42,
+              width: narrow ? 38 : 42,
+              height: narrow ? 38 : 42,
               borderRadius: '50%',
               flexShrink: 0,
               display: 'grid',

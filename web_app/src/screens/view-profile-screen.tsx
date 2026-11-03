@@ -298,7 +298,7 @@ export const ViewProfileScreen: React.FC = () => {
 
   if (error && !profile) {
     return (
-      <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: c.scaffold }}>
+      <Box sx={{ height: 'var(--app-h, 100dvh)', display: 'flex', flexDirection: 'column', bgcolor: c.scaffold }}>
         <Box
           component="header"
           sx={{
@@ -335,7 +335,7 @@ export const ViewProfileScreen: React.FC = () => {
   if (loading && !profile) {
     const shimmerBase = c.isDark ? '#2C2C2E' : '#EEEEEE';
     return (
-      <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: c.scaffold }}>
+      <Box sx={{ height: 'var(--app-h, 100dvh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: c.scaffold }}>
         <Box
           component="header"
           sx={{
@@ -384,7 +384,7 @@ export const ViewProfileScreen: React.FC = () => {
   const statusLabel = profile?.status === 'busy' ? 'Busy' : profile?.status === 'available' ? 'Available' : 'Offline';
 
   return (
-    <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: c.scaffold }}>
+    <Box sx={{ height: 'var(--app-h, 100dvh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: c.scaffold }}>
       {/* AppBar */}
       <Box
         component="header"
@@ -627,10 +627,10 @@ export const ViewProfileScreen: React.FC = () => {
         open={unlockTarget != null}
         onClose={() => setUnlockTarget(null)}
         handle={false}
-        maxHeight="92dvh"
+        maxHeight="calc(var(--app-h, 100dvh) * 0.92)"
         background={c.isDark ? '#1C1C1E' : '#FFFFFF'}
       >
-        <Box sx={{ px: '24px', pb: '36px', pt: '8px' }}>
+        <Box sx={{ px: '24px', pb: 'calc(24px + env(safe-area-inset-bottom))', pt: '8px' }}>
           <Box sx={{ height: 12 }} />
           <Box sx={{ width: 40, height: 5, borderRadius: '2.5px', bgcolor: c.isDark ? '#3A3A3C' : '#E0E0E0', mx: 'auto', mb: '24px' }} />
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -643,29 +643,64 @@ export const ViewProfileScreen: React.FC = () => {
               </Box>
             </Box>
             <Box sx={{ fontSize: 22, fontWeight: 800, color: c.isDark ? '#FFFFFF' : '#000000DE', mb: '6px' }}>🔒 Exclusive Content</Box>
-            <Box sx={{ fontSize: 14, color: c.isDark ? '#BDBDBD' : '#757575', mb: '24px', textAlign: 'center' }}>Pay once to see this photo by @{profile?.username}. Card, bank transfer or USSD.</Box>
+            <Box sx={{ fontSize: 14, color: c.isDark ? '#BDBDBD' : '#757575', mb: '20px', textAlign: 'center' }}>
+              One photo by @{profile?.username}. Once it is yours, it stays yours.
+            </Box>
+            {/* The price belongs on a receipt line. Two filled buttons of the same
+                colour read as two choices, and only one of them can be taken. */}
             <Box
               sx={{
                 width: '100%',
-                height: 54,
-                borderRadius: '27px',
-                bgcolor: '#FF5722',
-                color: '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 16,
-                fontWeight: 700,
-                mb: '16px',
+                boxSizing: 'border-box',
+                px: '18px',
+                py: '16px',
+                borderRadius: '16px',
+                bgcolor: c.isDark ? '#242426' : '#F4F5F7',
+                border: `1px solid ${c.isDark ? '#303032' : '#E4E7EC'}`,
+                mb: '20px',
               }}
             >
-              Unlock for ₦{Number(unlockTarget?.price || 0).toFixed(0)}
+              <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
+                <Box sx={{ fontSize: 13, fontWeight: 600, color: c.isDark ? '#9A9A9E' : '#7A7F87' }}>Unlock price</Box>
+                <Box sx={{ fontSize: 24, fontWeight: 800, color: c.isDark ? '#FFFFFF' : '#111318', whiteSpace: 'nowrap' }}>
+                  ₦{Number(unlockTarget?.price || 0).toLocaleString('en-NG')}
+                </Box>
+              </Box>
+              <Box sx={{ height: 1, bgcolor: c.isDark ? '#333335' : '#E4E7EC', my: '14px' }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                <Box sx={{ fontSize: 13, fontWeight: 600, color: c.isDark ? '#9A9A9E' : '#7A7F87' }}>Pay with</Box>
+                <Box sx={{ fontSize: 13, color: c.isDark ? '#D6D6D8' : '#414855', textAlign: 'right' }}>Card · Transfer · USSD</Box>
+              </Box>
             </Box>
-            <Button fullWidth variant="contained" onClick={() => void handleUnlockContent(unlockTarget!)} disabled={unlocking} sx={{ width: '100%', height: 52, borderRadius: '26px', fontSize: 16, fontWeight: 700, bgcolor: '#FF5722', color: '#FFFFFF', boxShadow: '0 4px 14px rgba(2,106,253,0.3)' }}>
-              {unlocking ? 'Opening secure checkout…' : 'Unlock Now'}
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => void handleUnlockContent(unlockTarget!)}
+              disabled={unlocking}
+              sx={{
+                height: 54,
+                borderRadius: '27px',
+                fontSize: 16,
+                fontWeight: 700,
+                bgcolor: '#026AFD',
+                color: '#FFFFFF',
+                boxShadow: '0 6px 18px rgba(2,106,253,0.32)',
+                '&:hover': { bgcolor: '#0158D4' },
+              }}
+            >
+              {unlocking
+                ? 'Opening secure checkout…'
+                : `Pay ₦${Number(unlockTarget?.price || 0).toLocaleString('en-NG')} to unlock`}
             </Button>
-            <Box sx={{ mt: '14px', fontSize: 12, color: c.isDark ? '#8A8A8E' : '#9E9E9E' }}>
-              Secured by Seerbit · you unlock the moment payment clears
+            <Button
+              onClick={() => setUnlockTarget(null)}
+              disabled={unlocking}
+              sx={{ mt: '4px', color: c.isDark ? '#8E8E93' : '#757575', fontWeight: 600, textTransform: 'none' }}
+            >
+              Not now
+            </Button>
+            <Box sx={{ mt: '10px', fontSize: 12, color: c.isDark ? '#8A8A8E' : '#9E9E9E', textAlign: 'center' }}>
+              Secured by Seerbit · the photo unlocks as soon as payment clears
             </Box>
           </Box>
         </Box>

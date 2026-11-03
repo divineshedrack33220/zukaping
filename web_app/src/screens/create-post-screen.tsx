@@ -114,7 +114,7 @@ export const CreatePostScreen: React.FC = () => {
   );
 
   return (
-    <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: c.scaffold, overflow: 'hidden' }}>
+    <Box sx={{ height: 'var(--app-h, 100dvh)', display: 'flex', flexDirection: 'column', bgcolor: c.scaffold, overflow: 'hidden' }}>
       {/* ── AppBar (Flutter style) ── */}
       <Box
         component="header"

@@ -225,14 +225,14 @@ export const EditProfileScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <Box sx={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: c.scaffold }}>
+      <Box sx={{ height: 'var(--app-h, 100dvh)', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: c.scaffold }}>
         <CircularProgress size={40} sx={{ color: PRIMARY }} />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: c.scaffold, overflow: 'hidden' }}>
+    <Box sx={{ height: 'var(--app-h, 100dvh)', display: 'flex', flexDirection: 'column', bgcolor: c.scaffold, overflow: 'hidden' }}>
       {/* ── Flutter AppBar ── */}
       <Box
         component="header"

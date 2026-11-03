@@ -36,7 +36,7 @@ import { ConfirmDialog } from '../components/common/confirm-dialog';
 import { useImageSourceSheet } from '../components/common/image-source-sheet';
 import { FullScreenViewer } from '../components/common/fullscreen-viewer';
 import { AppLogo } from '../components/common/app-logo';
-import { PRIMARY } from '../styles/tokens';
+import { PRIMARY, NAV_CLEARANCE } from '../styles/tokens';
 import type { ProfileImage } from '../models/chat.models';
 
 const AVATAR_PLACEHOLDER = '#F5F5F5';
@@ -315,7 +315,7 @@ export const ProfileScreen: React.FC = () => {
   // Flutter `_buildErrorState` (L481-500).
   if (error && !profile) {
     return (
-      <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: c.scaffold }}>
+      <Box sx={{ height: 'var(--app-h, 100dvh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: c.scaffold }}>
         <FlutterAppBar leading={<AppLogo size={40} />} title={appBarTitle} actions={appBarActions} />
         <Box
           sx={{
@@ -362,7 +362,7 @@ export const ProfileScreen: React.FC = () => {
   if (!profile || uploading) {
     const shimmerBase = isDark ? '#2C2C2E' : '#EEEEEE';
     return (
-      <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: c.scaffold }}>
+      <Box sx={{ height: 'var(--app-h, 100dvh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: c.scaffold }}>
         <FlutterAppBar
           leading={<AppLogo size={40} />}
           title={appBarTitle}
@@ -394,7 +394,7 @@ export const ProfileScreen: React.FC = () => {
   }
 
   return (
-    <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: c.scaffold }}>
+    <Box sx={{ height: 'var(--app-h, 100dvh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: c.scaffold }}>
       <FlutterAppBar
         leading={<AppLogo size={40} />}
         title={appBarTitle}
@@ -453,7 +453,7 @@ export const ProfileScreen: React.FC = () => {
             />
           </Box>
         )}
-        <Box sx={{ p: '20px' }}>
+        <Box sx={{ p: '20px', pb: NAV_CLEARANCE }}>
           {/* Avatar — circular (Flutter: the whole avatar opens the gallery) */}
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 12 }}>
             <Box
@@ -698,7 +698,7 @@ export const ProfileScreen: React.FC = () => {
       </FlutterSheet>
 
       {/* Referral sheet — Flutter radius 20, single inner handle */}
-      <FlutterSheet open={showReferralModal} onClose={() => setShowReferralModal(false)} background={c.isDark ? '#1C1C1E' : '#FFFFFF'} handle={false} radius={20} maxHeight="92dvh">
+      <FlutterSheet open={showReferralModal} onClose={() => setShowReferralModal(false)} background={c.isDark ? '#1C1C1E' : '#FFFFFF'} handle={false} radius={20} maxHeight="calc(var(--app-h, 100dvh) * 0.92)">
         <Box sx={{ px: '24px', pb: '30px', pt: '8px' }}>
           <Box sx={{ height: 12 }} />
           <Box sx={{ width: 48, height: 5, borderRadius: '2.5px', bgcolor: c.isDark ? '#3A3A3C' : '#E0E0E0', mx: 'auto', mb: '24px' }} />
@@ -983,7 +983,7 @@ const DialogSimple = ({ open, onClose, children }: { open: boolean; onClose: () 
           p: 3,
           width: '100%',
           maxWidth: 380,
-          maxHeight: '90dvh',
+          maxHeight: 'calc(var(--app-h, 100dvh) * 0.90)',
           overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}

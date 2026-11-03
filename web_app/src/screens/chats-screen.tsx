@@ -292,11 +292,11 @@ const FindFriendsSheet = ({
       open={open}
       onClose={onClose}
       handle={false}
-      maxHeight="85dvh"
+      maxHeight="calc(var(--app-h, 100dvh) * 0.85)"
       background="#FFFFFF"
       padding={0}
     >
-      <Box sx={{ height: '85dvh', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ height: 'calc(var(--app-h, 100dvh) * 0.85)', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ height: 12 }} />
         <Box
           sx={{
@@ -598,11 +598,11 @@ const CreateGroupSheet = ({
       open={open}
       onClose={onClose}
       handle={false}
-      maxHeight="90dvh"
+      maxHeight="calc(var(--app-h, 100dvh) * 0.90)"
       background={c.isDark ? '#1C1C1E' : '#FFFFFF'}
       padding={0}
     >
-      <Box sx={{ height: '90dvh', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ height: 'calc(var(--app-h, 100dvh) * 0.90)', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ height: 12, flexShrink: 0 }} />
         <Box
           sx={{
@@ -1420,8 +1420,7 @@ export const ChatsScreen = () => {
   return (
     <Box
       sx={{
-        flex: 1,
-        height: '100dvh',
+        height: 'var(--app-h, 100dvh)',
         display: 'flex',
         flexDirection: 'column',
         bgcolor: c.scaffold,

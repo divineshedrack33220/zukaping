@@ -687,7 +687,7 @@ export const SignupScreen = () => {
   };
 
   return (
-    <Box sx={{ flex: 1, minHeight: '100dvh', bgcolor: c.scaffold, display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ flex: 1, minHeight: 'var(--app-h, 100dvh)', bgcolor: c.scaffold, display: 'flex', flexDirection: 'column' }}>
       {/* AppBar */}
       <Box
         sx={{

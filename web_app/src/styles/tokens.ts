@@ -94,6 +94,13 @@ export const darkPalette: Palette = {
 export const getPalette = (mode: 'light' | 'dark'): Palette =>
   mode === 'dark' ? darkPalette : lightPalette;
 
+/**
+ * Bottom clearance for screens that scroll under the fixed nav bar: the bar is
+ * 60px tall and its centre create button overhangs another 24px, so a row that
+ * stops at 60px still disappears behind the button.
+ */
+export const NAV_CLEARANCE = 'calc(84px + env(safe-area-inset-bottom))';
+
 /** Material icon colors used by the Flutter status matrix. */
 export const STATUS_COLORS: Record<string, string> = {
   available: '#026AFD',

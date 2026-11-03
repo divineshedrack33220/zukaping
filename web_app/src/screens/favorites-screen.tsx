@@ -482,8 +482,7 @@ export const FavoritesScreen = () => {
   return (
     <Box
       sx={{
-        flex: 1,
-        height: '100dvh',
+        height: 'var(--app-h, 100dvh)',
         display: 'flex',
         flexDirection: 'column',
         bgcolor: c.scaffold,

@@ -9,7 +9,7 @@ import { apiService } from '../services/api.service';
 import { FlutterAppBar } from '../components/layout/flutter-app-bar';
 import { AppLogo } from '../components/common/app-logo';
 import { UserAvatar } from '../components/common/user-avatar';
-import { PRIMARY } from '../styles/tokens';
+import { PRIMARY, NAV_CLEARANCE } from '../styles/tokens';
 import { getCurrentPosition, wait } from '../utils/geo';
 import type { NearbyUser } from '../models/chat.models';
 
@@ -112,7 +112,7 @@ export const NearbyScreen: React.FC = () => {
   );
 
   return (
-    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, height: '100dvh', overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: 'var(--app-h, 100dvh)', overflow: 'hidden' }}>
       <FlutterAppBar
         leading={<AppLogo size={40} />}
         title={
@@ -133,7 +133,7 @@ export const NearbyScreen: React.FC = () => {
         renderEmpty()
       ) : (
         <Box sx={{ flex: 1, overflowY: 'auto' }}>
-          <Box sx={{ p: '16px' }}>
+          <Box sx={{ p: '16px', pb: NAV_CLEARANCE }}>
                   {people.map((user) => (
                 <Box
                   key={user.id}

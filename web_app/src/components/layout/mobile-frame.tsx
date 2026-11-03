@@ -12,7 +12,7 @@ export const MobileFrame = ({ children }: { children: ReactNode }) => {
   return (
     <Box
       sx={{
-        minHeight: '100dvh',
+        minHeight: 'var(--app-h, 100dvh)',
         width: '100%',
         bgcolor: { xs: c.scaffold, sm: c.isDark ? '#000000' : '#EDEDED' },
         display: 'flex',
@@ -24,7 +24,7 @@ export const MobileFrame = ({ children }: { children: ReactNode }) => {
           position: 'relative',
           width: '100%',
           maxWidth: 430,
-          minHeight: '100dvh',
+          minHeight: 'var(--app-h, 100dvh)',
           bgcolor: c.scaffold,
           color: c.text,
           display: 'flex',

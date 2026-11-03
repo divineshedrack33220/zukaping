@@ -9,7 +9,10 @@ import { AuthProvider, useAuth } from './contexts/auth.context';
 import { MeProvider } from './contexts/me.context';
 import { SnackbarProvider } from './contexts/snackbar.context';
 
+import { startViewportTracking } from './utils/viewport';
 import { MobileFrame } from './components/layout/mobile-frame';
+
+startViewportTracking();
 import { BottomNav } from './components/layout/bottom-nav';
 import { ConnectivityBanner } from './components/layout/connectivity-banner';
 import { NavBadgesProvider, useNavBadgeCounts } from './contexts/nav-badges.context';

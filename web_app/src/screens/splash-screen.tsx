@@ -113,7 +113,7 @@ export const SplashScreen = () => {
     <Box
       sx={{
         flex: 1,
-        minHeight: '100dvh',
+        minHeight: 'var(--app-h, 100dvh)',
         bgcolor: '#FFFFFF',
         display: 'flex',
         alignItems: 'center',

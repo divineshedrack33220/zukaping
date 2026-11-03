@@ -332,7 +332,7 @@ export const OnboardingScreen = () => {
       sx={{
         position: 'relative',
         flex: 1,
-        minHeight: '100dvh',
+        minHeight: 'var(--app-h, 100dvh)',
         bgcolor: '#FFFFFF',
         overflow: 'hidden',
         display: 'flex',
