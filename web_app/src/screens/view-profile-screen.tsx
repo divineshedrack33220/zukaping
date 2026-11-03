@@ -20,7 +20,7 @@ import type { ExtendedUserProfile, ProfileImage } from '../services/api.service'
 
 export const ViewProfileScreen: React.FC = () => {
   const { userId: routeUserId } = useParams<{ userId: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
   const c = usePalette();
@@ -154,6 +154,51 @@ export const ViewProfileScreen: React.FC = () => {
     void loadProfile();
   }, [loadProfile]);
 
+  // Seerbit sends the payer back here with ?payment=<our reference>. The gateway
+  // has usually settled by then but not always, so ask a few times before giving
+  // up; the backend settles the moment it sees the paid amount, from any answer.
+  const paymentRef = searchParams.get('payment');
+  const settledPaymentRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!paymentRef || settledPaymentRef.current === paymentRef) return;
+    settledPaymentRef.current = paymentRef;
+    let cancelled = false;
+
+    void (async () => {
+      showToast('Confirming your payment…');
+      let unlocked = false;
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const outcome = await apiService
+          .getPaymentStatus(paymentRef)
+          .catch(() => null);
+        if (cancelled) return;
+        if (outcome?.unlocked) {
+          unlocked = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        if (cancelled) return;
+      }
+      showToast(
+        unlocked
+          ? 'Payment received. Content unlocked.'
+          : "We can't see the payment yet. It unlocks as soon as the bank confirms it."
+      );
+      setSearchParams(
+        (prev) => {
+          prev.delete('payment');
+          return prev;
+        },
+        { replace: true }
+      );
+      void loadProfile();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentRef, loadProfile, setSearchParams, showToast]);
+
   const effectiveImages: ProfileImage[] =
     images.length > 0
       ? images
@@ -229,14 +274,24 @@ export const ViewProfileScreen: React.FC = () => {
   const handleUnlockContent = async (target: ProfileImage) => {
     setUnlocking(true);
     try {
-      await apiService.unlockContent(target.id);
-      showToast('Payment coming soon! Content unlocked instantly for testing.');
+      const session = await apiService.initiatePayment(target.id);
+      if (session.unlocked || session.status === 'already_unlocked') {
+        showToast('You already own this.');
+        setUnlockTarget(null);
+        setUnlocking(false);
+        void loadProfile();
+        return;
+      }
+      if (!session.redirectUrl) {
+        throw new Error('the server returned no checkout link');
+      }
+      // Leaving the page is the whole point: checkout happens on Seerbit's host,
+      // so the button stays disabled through the redirect.
+      showToast(`Paying ₦${Number(session.amount ?? target.price ?? 0).toFixed(0)}…`);
+      window.location.assign(session.redirectUrl);
+    } catch (e: any) {
+      showToast(`Could not start the payment: ${e?.response?.data?.error || e?.message || e}`);
       setUnlockTarget(null);
-      void loadProfile();
-    } catch (e) {
-      showToast(`Failed to unlock content: ${e}`);
-      setUnlockTarget(null);
-    } finally {
       setUnlocking(false);
     }
   };
@@ -588,7 +643,7 @@ export const ViewProfileScreen: React.FC = () => {
               </Box>
             </Box>
             <Box sx={{ fontSize: 22, fontWeight: 800, color: c.isDark ? '#FFFFFF' : '#000000DE', mb: '6px' }}>🔒 Exclusive Content</Box>
-            <Box sx={{ fontSize: 14, color: c.isDark ? '#BDBDBD' : '#757575', mb: '24px' }}>Unlock this premium photo by @{profile?.username}</Box>
+            <Box sx={{ fontSize: 14, color: c.isDark ? '#BDBDBD' : '#757575', mb: '24px', textAlign: 'center' }}>Pay once to see this photo by @{profile?.username}. Card, bank transfer or USSD.</Box>
             <Box
               sx={{
                 width: '100%',
@@ -607,8 +662,11 @@ export const ViewProfileScreen: React.FC = () => {
               Unlock for ₦{Number(unlockTarget?.price || 0).toFixed(0)}
             </Box>
             <Button fullWidth variant="contained" onClick={() => void handleUnlockContent(unlockTarget!)} disabled={unlocking} sx={{ width: '100%', height: 52, borderRadius: '26px', fontSize: 16, fontWeight: 700, bgcolor: '#FF5722', color: '#FFFFFF', boxShadow: '0 4px 14px rgba(2,106,253,0.3)' }}>
-              {unlocking ? 'Unlocking…' : 'Unlock Now'}
+              {unlocking ? 'Opening secure checkout…' : 'Unlock Now'}
             </Button>
+            <Box sx={{ mt: '14px', fontSize: 12, color: c.isDark ? '#8A8A8E' : '#9E9E9E' }}>
+              Secured by Seerbit · you unlock the moment payment clears
+            </Box>
           </Box>
         </Box>
       </FlutterSheet>

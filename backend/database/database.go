@@ -331,6 +331,25 @@ func CreateIndexes() {
 		log.Printf("Error creating content purchases indexes: %v", err)
 	}
 
+	// Payments: the gateway reference is the only join key shared with the webhook,
+	// so it must be unique, and the reconcile sweep looks for a user's open charges.
+	paymentsColl := DB.Collection("payments")
+	paymentsIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "reference", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "status", Value: 1}, {Key: "created_at", Value: -1}},
+		},
+		{
+			Keys: bson.D{{Key: "image_id", Value: 1}},
+		},
+	}
+	if _, err := paymentsColl.Indexes().CreateMany(ctx, paymentsIndexes); err != nil {
+		log.Printf("Error creating payments indexes: %v", err)
+	}
+
 	// Admin audit logs indexes
 	auditColl := DB.Collection("admin_audit_logs")
 	auditIndexes := []mongo.IndexModel{

@@ -4,6 +4,7 @@ import "package:http/http.dart" as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/sound_service.dart';
 import '../models/profile_image.dart';
@@ -17,7 +18,8 @@ class ViewProfileScreen extends StatefulWidget {
   State<ViewProfileScreen> createState() => _ViewProfileScreenState();
 }
 
-class _ViewProfileScreenState extends State<ViewProfileScreen> {
+class _ViewProfileScreenState extends State<ViewProfileScreen>
+    with WidgetsBindingObserver {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
   bool _isFavorited = false;
@@ -26,17 +28,58 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
   final PageController _pageController = PageController();
   List<ProfileImage> _profileImages = [];
 
+  // Set while the hosted checkout is open in the browser; whatever it settles to
+  // is read when the user comes back to this screen.
+  String? _pendingPaymentReference;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadProfile();
     _loadFavorites();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || _pendingPaymentReference == null) {
+      return;
+    }
+    final reference = _pendingPaymentReference!;
+    _pendingPaymentReference = null;
+    _confirmPayment(reference);
+  }
+
+  Future<void> _confirmPayment(String reference) async {
+    _showToast('Confirming your payment…');
+    bool unlocked = false;
+    for (int attempt = 0; attempt < 4; attempt++) {
+      try {
+        final outcome = await ApiService.paymentStatus(reference);
+        unlocked = outcome['unlocked'] == true;
+      } catch (_) {
+        unlocked = false;
+      }
+      if (unlocked) break;
+      await Future.delayed(const Duration(seconds: 3));
+    }
+    if (!mounted) return;
+    _showToast(unlocked
+        ? 'Payment received. Content unlocked.'
+        : "We can't see the payment yet. It unlocks as soon as the bank confirms it.");
+    try {
+      await ApiService.reconcilePayments();
+    } catch (_) {
+      // The profile reload below asks per image, so a failed sweep is not fatal.
+    }
+    if (mounted) _loadProfile();
   }
 
   Future<void> _loadProfile() async {
@@ -936,11 +979,29 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
                   onPressed: () async {
                     Navigator.pop(context);
                     try {
-                      final result = await ApiService.unlockContent(img.id);
-                      _showToast("Payment coming soon! Content unlocked instantly for testing.");
-                      _loadProfile();
+                      final session = await ApiService.initiatePayment(img.id);
+                      if (session['unlocked'] == true ||
+                          session['status'] == 'already_unlocked') {
+                        _showToast('You already own this.');
+                        _loadProfile();
+                        return;
+                      }
+                      final reference = session['reference'] as String?;
+                      final url = Uri.parse(session['redirectUrl'] as String? ?? '');
+                      if (url.scheme != 'https' || reference == null) {
+                        _showToast('The payment server did not give us a checkout link.');
+                        return;
+                      }
+                      // Checkout happens outside the app; coming back to the
+                      // foreground is what triggers the confirmation.
+                      _pendingPaymentReference = reference;
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                      if (mounted) {
+                        _showToast('Complete the payment in your browser.');
+                      }
                     } catch (e) {
-                      _showToast("Failed to unlock content: $e");
+                      _pendingPaymentReference = null;
+                      _showToast("Could not start the payment: $e");
                     }
                   },
                   style: ElevatedButton.styleFrom(

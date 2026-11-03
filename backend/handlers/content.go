@@ -372,17 +372,17 @@ func GetUserProfile(c *gin.Context) {
 	})
 }
 
-// UnlockContent processes content purchases (saves acompleted mock purchase for testing)
+// UnlockContent is the fulfilment check, not the payment. Money moves on Seerbit's
+// hosted checkout via POST /api/payments/init, so reaching this endpoint with an
+// unpaid image must never grant access.
 func UnlockContent(c *gin.Context) {
-	buyerIDStr := c.GetString("userId")
-	buyerID, err := primitive.ObjectIDFromHex(buyerIDStr)
+	buyerID, err := primitive.ObjectIDFromHex(c.GetString("userId"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	imageIDStr := c.Param("image_id")
-	imageID, err := primitive.ObjectIDFromHex(imageIDStr)
+	imageID, err := primitive.ObjectIDFromHex(c.Param("image_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image ID"})
 		return
@@ -391,12 +391,7 @@ func UnlockContent(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	usersColl := database.Client.Database("coded").Collection("users")
-	purchasesColl := database.Client.Database("coded").Collection("content_purchases")
-
-	// Find the creator and image details
-	var creator models.User
-	err = usersColl.FindOne(ctx, bson.M{"profile_images._id": imageID}).Decode(&creator)
+	creator, targetImage, err := exclusiveImage(ctx, imageID)
 	if err == mongo.ErrNoDocuments {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Exclusive content not found"})
 		return
@@ -405,37 +400,38 @@ func UnlockContent(c *gin.Context) {
 		return
 	}
 
-	var targetImage models.ProfileImage
-	for _, img := range creator.ProfileImages {
-		if img.ID == imageID {
-			targetImage = img
-			break
-		}
-	}
-
-	// Create content purchase record
-	purchase := models.ContentPurchase{
-		ID:        primitive.NewObjectID(),
-		BuyerID:   buyerID,
-		CreatorID: creator.ID,
-		ImageID:   imageID,
-		Price:     targetImage.Price,
-		Currency:  targetImage.Currency,
-		Status:    "completed", // Instantly completed mock purchase for premium testing!
-		CreatedAt: time.Now(),
-	}
-
-	// Insert purchase. If already bought, ignore duplicate index error
-	_, err = purchasesColl.InsertOne(ctx, purchase)
-	if err != nil && !mongo.IsDuplicateKeyError(err) {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record content unlock"})
+	if creator.ID == buyerID {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "completed",
+			"message": "This is your own content.",
+		})
 		return
 	}
 
-	// Return completed response — the purchase record is immediately status "completed"
-	c.JSON(http.StatusOK, gin.H{
-		"status":  "completed",
-		"message": "Content unlocked successfully.",
+	count, err := purchasesColl().CountDocuments(ctx, bson.M{
+		"buyer_id": buyerID,
+		"image_id": imageID,
+		"status":   "completed",
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+	if count > 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "completed",
+			"message": "Content already unlocked.",
+		})
+		return
+	}
+
+	c.JSON(http.StatusPaymentRequired, gin.H{
+		"error":    "Payment required",
+		"code":     "payment_required",
+		"amount":   targetImage.Price,
+		"currency": targetImage.Currency,
+		"provider": paymentsProvider,
+		"pay":      "/api/payments/init",
 	})
 }
 

@@ -15,6 +15,7 @@ import (
     emailconfig "coded/pkg/email"
     "coded/pkg/logger"
     "coded/pkg/metrics"
+    payconfig "coded/pkg/seerbit"
     "coded/webapp"
 
     "github.com/gin-gonic/gin"
@@ -168,6 +169,10 @@ func SetupRouter() *gin.Engine {
         if emailconfig.IsConfigured() {
             email = "configured as " + emailconfig.FromAddress()
         }
+        payments := "not configured - content cannot be sold"
+        if payconfig.IsConfigured() {
+            payments = "seerbit at " + payconfig.BaseURL()
+        }
         c.JSON(200, gin.H{
             "status":     "ok",
             "message":    "Coded API is running",
@@ -176,6 +181,7 @@ func SetupRouter() *gin.Engine {
             "google":     google,
             "cloudinary": cloudinary,
             "email":      email,
+            "payments":   payments,
         })
     })
 
@@ -236,6 +242,16 @@ func SetupRouter() *gin.Engine {
     protected.GET("/users/:id/profile", handlers.GetUserProfile)
     protected.POST("/content/:image_id/unlock", handlers.UnlockContent)
     protected.GET("/content/:image_id/status", handlers.CheckUnlockStatus)
+
+    // Real money: a charge is opened here, paid on Seerbit's hosted checkout, and
+    // only ever settles after the gateway confirms the exact amount.
+    protected.POST("/payments/init", handlers.StartPayment)
+    protected.GET("/payments/status/:reference", handlers.PaymentStatus)
+    protected.POST("/payments/reconcile", handlers.ReconcilePayments)
+
+    // Seerbit push channel. Registered in their dashboard, so it is public by
+    // necessity: the HMAC signature is the only thing that authenticates it.
+    router.POST("/api/webhooks/seerbit", handlers.SeerbitWebhook)
 
     // Chats
     protected.GET("/chats", handlers.GetChatList)

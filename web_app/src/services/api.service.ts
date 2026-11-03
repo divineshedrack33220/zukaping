@@ -10,6 +10,8 @@ import {
   LoginResponse,
   Message,
   NearbyUser,
+  PaymentOutcome,
+  PaymentSession,
   ProfileImage,
   Room,
   SignupResponse,
@@ -26,6 +28,8 @@ export type {
   LoginResponse,
   Message,
   NearbyUser,
+  PaymentOutcome,
+  PaymentSession,
   ProfileImage,
   Room,
   SignupResponse,
@@ -952,14 +956,6 @@ class ApiService {
     return normaliseExtendedUser(raw);
   }
 
-  async unlockContent(imageId: string): Promise<any> {
-    return this.request<any>({
-      url: `/content/${imageId}/unlock`,
-      method: 'POST',
-      data: {},
-    });
-  }
-
   async checkUnlockStatus(imageId: string): Promise<boolean> {
     try {
       const data = await this.request<any>({
@@ -970,6 +966,34 @@ class ApiService {
     } catch {
       return false;
     }
+  }
+
+  /* --------------------------- payments ---------------------------- */
+
+  /** Opens a Seerbit charge. The caller must navigate to redirectUrl to pay. */
+  async initiatePayment(imageId: string): Promise<PaymentSession> {
+    return this.request<PaymentSession>({
+      url: '/payments/init',
+      method: 'POST',
+      data: { imageId },
+    });
+  }
+
+  /** Asks the backend what the gateway says about a reference it issued. */
+  async getPaymentStatus(reference: string): Promise<PaymentOutcome> {
+    return this.request<PaymentOutcome>({
+      url: `/payments/status/${encodeURIComponent(reference)}`,
+      method: 'GET',
+    });
+  }
+
+  /** Settles anything paid while this tab was closed. */
+  async reconcilePayments(): Promise<{ checked: number; settled: number }> {
+    return this.request<{ checked: number; settled: number }>({
+      url: '/payments/reconcile',
+      method: 'POST',
+      data: {},
+    });
   }
 
   /* ---------------------- push notifications ---------------------- */

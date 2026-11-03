@@ -44,6 +44,13 @@ export const MeProvider = ({ children }: { children: ReactNode }) => {
     void refresh();
   }, [refresh]);
 
+  // Someone who paid and then closed the checkout tab still has an open charge.
+  // Asking once per load settles it, so the photo appears without a hunt.
+  useEffect(() => {
+    if (!token) return;
+    void apiService.reconcilePayments().catch(() => undefined);
+  }, [token]);
+
   return (
     <MeContext.Provider value={{ me, loading, refresh, setMe }}>
       {children}

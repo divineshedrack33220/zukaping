@@ -22,6 +22,9 @@ dependencies:
   flutter_local_notifications: ^17.1.2
   google_sign_in: ^6.2.1
   connectivity_plus: ^6.0.3
+  # Seerbit's checkout is a hosted web page; the app opens it outside itself and
+  # reconciles the payment when the user comes back.
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

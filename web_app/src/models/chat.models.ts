@@ -188,3 +188,20 @@ export interface GoogleAuthResponse {
   expires?: number;
   refreshToken?: string;
 }
+
+/** A charge we have opened on Seerbit but not yet seen the outcome of. */
+export interface PaymentSession {
+  status: string;
+  reference?: string;
+  redirectUrl?: string;
+  amount?: number;
+  currency?: string;
+  unlocked?: boolean;
+}
+
+/** What the gateway says about a reference we asked it about. */
+export interface PaymentOutcome {
+  status: string;
+  unlocked: boolean;
+  reference: string;
+}

@@ -759,17 +759,50 @@ class ApiService {
     throw Exception('Failed to load profile: ${response.statusCode}');
   }
 
-  static Future<Map<String, dynamic>> unlockContent(String imageId) async {
+  // Opens a Seerbit charge for one exclusive image. Nothing is unlocked until the
+  // gateway confirms the amount, so the caller must send the user to redirectUrl.
+  static Future<Map<String, dynamic>> initiatePayment(String imageId) async {
     final headers = await getHeaders();
     final response = await http.post(
-      Uri.parse('$baseUrl/content/$imageId/unlock'),
+      Uri.parse('$baseUrl/payments/init'),
       headers: headers,
-      body: jsonEncode({}),
+      body: jsonEncode({'imageId': imageId}),
     );
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     }
-    throw Exception('Failed to unlock content: ${response.statusCode}');
+    // A proxy can answer for us with a page that is not JSON, so the reason is
+    // taken only when the body really carries one.
+    String message = 'Could not start the payment (${response.statusCode})';
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map && decoded['error'] is String) {
+        message = decoded['error'] as String;
+      }
+    } catch (_) {}
+    throw Exception(message);
+  }
+
+  static Future<Map<String, dynamic>> paymentStatus(String reference) async {
+    final headers = await getHeaders();
+    final response = await http.get(
+      Uri.parse('$baseUrl/payments/status/$reference'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Payment check failed: ${response.statusCode}');
+  }
+
+  // Settles charges the payer finished in the browser and then abandoned.
+  static Future<void> reconcilePayments() async {
+    final headers = await getHeaders();
+    await http.post(
+      Uri.parse('$baseUrl/payments/reconcile'),
+      headers: headers,
+      body: jsonEncode({}),
+    );
   }
 
   static Future<bool> checkUnlockStatus(String imageId) async {
