@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, CircularProgress } from '@mui/material';
 import RadarIcon from '@mui/icons-material/Radar';
 import ExploreOffIcon from '@mui/icons-material/ExploreOff';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { useNavigate } from 'react-router-dom';
 import { usePalette } from '../contexts/app-theme.context';
 import { useAuth } from '../contexts/auth.context';
@@ -19,6 +18,7 @@ import { StatusPill } from '../components/feed/status-pill';
 import { StoryRail } from '../components/feed/story-rail';
 import { PostCard } from '../components/feed/post-card';
 import { RadarOverlay } from '../components/feed/radar-overlay';
+import { ScanFab } from '../components/feed/scan-fab';
 import { getCurrentPosition, wait } from '../utils/geo';
 
 /**
@@ -26,6 +26,16 @@ import { getCurrentPosition, wait } from '../utils/geo';
  * App bar logo + radar + status pill, nearby story rail, inline post cards,
  * 56 px location FAB and the full-body radar scan overlay.
  */
+
+/* Visitors read "scanning" and expect people; "broadcasting a signal" reads
+   like radio equipment and says nothing about who is close by. */
+const SCAN_TITLE = 'Scanning nearby…';
+const SCAN_SUB = 'Looking for people around you';
+const scanFound = (count: number) => `${count} ${count === 1 ? 'person' : 'people'} nearby`;
+const SCAN_FOUND_SUB = 'Tap anyone to see their profile';
+const SCAN_EMPTY_TITLE = 'Nobody nearby yet';
+const SCAN_EMPTY_SUB = 'Try moving to a different location or check back later';
+
 export const FeedScreen = () => {
   const c = usePalette();
   const navigate = useNavigate();
@@ -47,10 +57,8 @@ export const FeedScreen = () => {
   const [radarEnabled, setRadarEnabled] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
-  const [broadcastText, setBroadcastText] = useState('Broadcasting signal...');
-  const [broadcastSubtext, setBroadcastSubtext] = useState(
-    'Searching for users in your area'
-  );
+  const [broadcastText, setBroadcastText] = useState(SCAN_TITLE);
+  const [broadcastSubtext, setBroadcastSubtext] = useState(SCAN_SUB);
   const [broadcastResults, setBroadcastResults] = useState<NearbyUser[]>([]);
 
   const postsRef = useRef<FeedPost[]>([]);
@@ -187,13 +195,11 @@ export const FeedScreen = () => {
           const users = Array.isArray(payload?.users) ? (payload.users as NearbyUser[]) : [];
           setNearby(users);
           if (users.length) {
-            setBroadcastText(
-              `${users.length} user${users.length > 1 ? 's' : ''} found nearby`
-            );
-            setBroadcastSubtext('Scroll to browse');
+            setBroadcastText(scanFound(users.length));
+            setBroadcastSubtext(SCAN_FOUND_SUB);
           } else {
-            setBroadcastText('No signals detected');
-            setBroadcastSubtext('No users found in your immediate area');
+            setBroadcastText(SCAN_EMPTY_TITLE);
+            setBroadcastSubtext(SCAN_EMPTY_SUB);
           }
           break;
         }
@@ -220,9 +226,10 @@ export const FeedScreen = () => {
     scanningRef.current = true;
     setScanning(true);
     setOverlayOpen(true);
-    setBroadcastText('Broadcasting signal...');
-    setBroadcastSubtext('Searching for users in your area');
+    setBroadcastText(SCAN_TITLE);
+    setBroadcastSubtext(SCAN_SUB);
     setBroadcastResults([]);
+    let delivered = false;
     try {
       const position = await getCurrentPosition();
       const lat = position?.lat ?? 0;
@@ -231,28 +238,31 @@ export const FeedScreen = () => {
         await wait(700);
         try {
           const users = await apiService.getNearbyUsers(lat, lng);
+          delivered = true;
           if (users.length) {
             setNearby(users);
             if (attempt === 2) {
               setBroadcastResults(users);
-              setBroadcastText(
-                `${users.length} user${users.length > 1 ? 's' : ''} found nearby`
-              );
-              setBroadcastSubtext('Scroll to browse');
+              setBroadcastText(scanFound(users.length));
+              setBroadcastSubtext(SCAN_FOUND_SUB);
             }
           } else if (attempt === 2) {
-            setBroadcastText('No signals detected');
-            setBroadcastSubtext('No users found in your immediate area');
+            setBroadcastText(SCAN_EMPTY_TITLE);
+            setBroadcastSubtext(SCAN_EMPTY_SUB);
           }
         } catch {
           /* retry */
         }
       }
     } catch {
-      setBroadcastText('Broadcast failed');
-      setBroadcastSubtext('Signal transmission interrupted');
       showToast('Failed to scan nearby users');
     } finally {
+      /* Without this the overlay keeps spinning the "scanning" copy forever when
+         every request failed, which reads as a working feature. */
+      if (!delivered) {
+        setBroadcastText('Scan failed');
+        setBroadcastSubtext('Could not read your location');
+      }
       scanningRef.current = false;
       setScanning(false);
     }
@@ -594,55 +604,8 @@ export const FeedScreen = () => {
             </Box>
           )}
 
-          {/* 56 px location FAB */}
-          <Box
-            role="button"
-            aria-label="Scan nearby"
-            tabIndex={0}
-            onClick={() => void broadcastScan()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') void broadcastScan();
-            }}
-            sx={{
-              position: 'absolute',
-              bottom: 90,
-              right: 20,
-              width: 56,
-              height: 56,
-              borderRadius: '50%',
-              bgcolor: '#026AFD',
-              boxShadow: '0 6px 20px rgba(2,106,253,0.3)',
-              display: 'grid',
-              placeItems: 'center',
-              cursor: 'pointer',
-              zIndex: 10,
-            }}
-          >
-            <LocationOnIcon sx={{ fontSize: 28, color: '#FFFFFF' }} />
-            {nearby.length > 0 && (
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: -4,
-                  right: -4,
-                  minWidth: 20,
-                  minHeight: 20,
-                  p: '4px',
-                  borderRadius: '50%',
-                  bgcolor: '#F44336',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-              >
-                <Box
-                  component="span"
-                  sx={{ fontSize: 11, fontWeight: 700, color: '#FFFFFF', lineHeight: 1 }}
-                >
-                  {nearby.length}
-                </Box>
-              </Box>
-            )}
-          </Box>
+          {/* 56 px scan FAB */}
+          <ScanFab count={nearby.length} onScan={() => void broadcastScan()} />
 
           <RadarOverlay
             open={overlayOpen}

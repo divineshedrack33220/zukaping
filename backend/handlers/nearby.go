@@ -7,6 +7,7 @@ import (
     "math"
     "net/http"
     "sort"
+    "strconv"
     "time"
 
     "coded/database"
@@ -17,6 +18,9 @@ import (
     "go.mongodb.org/mongo-driver/bson/primitive"
     "go.mongodb.org/mongo-driver/mongo/options"
 )
+
+// How far a scanned person can be and still be called "nearby".
+const nearbyRadiusKm = 100.0
 
 func GetNearbyUsers(c *gin.Context) {
     log.Printf("[GetNearbyUsers] Request received")
@@ -43,8 +47,19 @@ func GetNearbyUsers(c *gin.Context) {
         currentUser.BlockedUsers = []primitive.ObjectID{}
     }
 
-    hasLocation := currentUser.Latitude != nil && currentUser.Longitude != nil &&
-        *currentUser.Latitude != 0 && *currentUser.Longitude != 0
+    // The radar scans the live GPS fix, so rank around it. The stored position is
+    // only the fallback for callers that send no coordinates.
+    refLat, refLng := currentUser.Latitude, currentUser.Longitude
+    if qLat, e1 := strconv.ParseFloat(c.Query("lat"), 64); e1 == nil {
+        if qLng, e2 := strconv.ParseFloat(c.Query("lng"), 64); e2 == nil {
+            if qLat != 0 && qLng != 0 {
+                refLat, refLng = &qLat, &qLng
+            }
+        }
+    }
+
+    hasLocation := refLat != nil && refLng != nil &&
+        *refLat != 0 && *refLng != 0
 
     // Filter out:
     // 1. Myself
@@ -82,15 +97,24 @@ func GetNearbyUsers(c *gin.Context) {
     for _, user := range allUsers {
         var distance float64 = 999999 // Default for no location
         var distanceStr string = "Nearby"
-        
-        if hasLocation && user.Latitude != nil && user.Longitude != nil &&
-            *user.Latitude != 0 && *user.Longitude != 0 {
-            distance = calculateDistance(*currentUser.Latitude, *currentUser.Longitude, *user.Latitude, *user.Longitude)
+
+        if hasLocation {
+            // We know where the caller is, so "nearby" has to mean something:
+            // a scan in a quiet town should come back empty rather than list
+            // the other side of the world.
+            if user.Latitude == nil || user.Longitude == nil ||
+                *user.Latitude == 0 || *user.Longitude == 0 {
+                continue
+            }
+            distance = calculateDistance(*refLat, *refLng, *user.Latitude, *user.Longitude)
+            if distance > nearbyRadiusKm {
+                continue
+            }
             distanceMeters := math.Round(distance * 1000)
             if distanceMeters < 1000 {
                 distanceStr = fmt.Sprintf("%.0fm away", distanceMeters)
             } else {
-                distanceStr = fmt.Sprintf("%.1fkm away", distance/1000)
+                distanceStr = fmt.Sprintf("%.1fkm away", distance)
             }
         }
 

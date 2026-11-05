@@ -10,12 +10,26 @@ import { MeProvider } from './contexts/me.context';
 import { SnackbarProvider } from './contexts/snackbar.context';
 
 import { startViewportTracking } from './utils/viewport';
+import { initPwaInstall } from './utils/pwa-install';
 import { MobileFrame } from './components/layout/mobile-frame';
 
 startViewportTracking();
+initPwaInstall();
+
+// The service worker is what makes the app installable and lets it warm its own
+// assets; registering it in `npm run dev` would cache-stale every edit.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch((error) => {
+      console.warn('service worker registration failed', error);
+    });
+  });
+}
+
 import { BottomNav } from './components/layout/bottom-nav';
 import { ConnectivityBanner } from './components/layout/connectivity-banner';
 import { NavBadgesProvider, useNavBadgeCounts } from './contexts/nav-badges.context';
+import { InstallPrompt } from './components/common/install-prompt';
 
 import { SplashScreen } from './screens/splash-screen';
 import { OnboardingScreen } from './screens/onboarding-screen';
@@ -65,6 +79,7 @@ const AppRoutes = () => {
       <ConnectivityBanner />
       {withNav ? <BottomNav chatsCount={badges.chatsCount} /> : null}
       {children}
+      <InstallPrompt />
     </MobileFrame>
   );
 

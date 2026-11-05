@@ -41,6 +41,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // The manifest drives the install shortcut list, so a stale copy would outlive
+  // every later icon or route change.
+  if (url.pathname === '/manifest.json') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('/manifest.json', copy));
+          return response;
+        })
+        .catch(() => caches.match('/manifest.json').then((cached) => cached || Response.error()))
+    );
+    return;
+  }
+
   // Cache-first for static assets.
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request))

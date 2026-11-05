@@ -68,7 +68,7 @@ export const NearbyScreen: React.FC = () => {
 
   const renderEmpty = () => (
     <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: '24px' }}>
-      <Box sx={{ fontSize: 18, fontWeight: 600, color: '#9E9E9E' }}>No users nearby</Box>
+      <Box sx={{ fontSize: 18, fontWeight: 600, color: '#9E9E9E' }}>Nobody nearby yet</Box>
     </Box>
   );
 

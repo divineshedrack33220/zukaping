@@ -90,6 +90,23 @@ export const RadarOverlay = ({
             pt: '72px',
           }}
         >
+          {/* The count is the payload of the whole scan, so it gets a header
+              instead of being silently replaced by the list. */}
+          <Box sx={{ px: '16px', pb: '12px', flexShrink: 0 }}>
+            <Box sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.4, color: c.text }}>
+              {title}
+            </Box>
+            <Box
+              sx={{
+                mt: '4px',
+                fontSize: 14,
+                lineHeight: 1.43,
+                color: c.isDark ? '#9E9E9E' : '#757575',
+              }}
+            >
+              {subtitle}
+            </Box>
+          </Box>
           <Box sx={{ flex: 1, overflowY: 'auto', px: '16px', pb: '24px' }}>
             {users.map((user) => {
               const avatar = pickAvatar(user.avatar, user.photos);
@@ -337,30 +354,33 @@ export const RadarOverlay = ({
               <LocationOnIcon sx={{ fontSize: 18, color: '#FFFFFF' }} />
             </Box>
           </Box>
-          <Box
-            sx={{
-              mt: '40px',
-              fontSize: 20,
-              fontWeight: 600,
-              lineHeight: 1.4,
-              color: c.text,
-              textAlign: 'center',
-            }}
-          >
-            {title}
-          </Box>
-          <Box
-            sx={{
-              mt: '16px',
-              fontSize: 16,
-              lineHeight: 1.5,
-              color: c.isDark ? '#BDBDBD' : '#666666',
-              textAlign: 'center',
-            }}
-          >
-            {subtitle}
-          </Box>
-          {!scanning && users.length === 0 && (
+          {scanning ? (
+            <>
+              <Box
+                sx={{
+                  mt: '40px',
+                  fontSize: 20,
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                  color: c.text,
+                  textAlign: 'center',
+                }}
+              >
+                {title}
+              </Box>
+              <Box
+                sx={{
+                  mt: '16px',
+                  fontSize: 16,
+                  lineHeight: 1.5,
+                  color: c.isDark ? '#BDBDBD' : '#666666',
+                  textAlign: 'center',
+                }}
+              >
+                {subtitle}
+              </Box>
+            </>
+          ) : (
             <Box
               sx={{
                 mt: '32px',
@@ -378,9 +398,10 @@ export const RadarOverlay = ({
                   fontWeight: 600,
                   lineHeight: 1.33,
                   color: c.isDark ? '#E0E0E0' : '#616161',
+                  textAlign: 'center',
                 }}
               >
-                No users nearby
+                {title}
               </Box>
               <Box
                 sx={{
@@ -391,7 +412,7 @@ export const RadarOverlay = ({
                   textAlign: 'center',
                 }}
               >
-                Try moving to a different location or check back later
+                {subtitle}
               </Box>
             </Box>
           )}

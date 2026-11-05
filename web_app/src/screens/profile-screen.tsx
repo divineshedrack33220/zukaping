@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -24,6 +24,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ShareIcon from '@mui/icons-material/Share';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
+import InstallMobileIcon from '@mui/icons-material/InstallMobile';
 import { useAppTheme, usePalette } from '../contexts/app-theme.context';
 import { useAuth } from '../contexts/auth.context';
 import { useMe } from '../contexts/me.context';
@@ -36,6 +37,11 @@ import { ConfirmDialog } from '../components/common/confirm-dialog';
 import { useImageSourceSheet } from '../components/common/image-source-sheet';
 import { FullScreenViewer } from '../components/common/fullscreen-viewer';
 import { AppLogo } from '../components/common/app-logo';
+import {
+  getInstallState,
+  openInstallPrompt,
+  subscribeInstall,
+} from '../utils/pwa-install';
 import { PRIMARY, NAV_CLEARANCE } from '../styles/tokens';
 import type { ProfileImage } from '../models/chat.models';
 
@@ -48,6 +54,7 @@ export const ProfileScreen: React.FC = () => {
   const { userId, logout } = useAuth();
   const { me, loading, refresh, setMe } = useMe();
   const { showToast } = useSnackbar();
+  const install = useSyncExternalStore(subscribeInstall, getInstallState, getInstallState);
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
@@ -663,6 +670,18 @@ export const ProfileScreen: React.FC = () => {
           <Box sx={{ width: 40, height: 4, borderRadius: 2, bgcolor: c.isDark ? '#3A3A3C' : '#E0E0E0', mx: 'auto', mb: '16px' }} />
           <Box sx={{ fontSize: 18, fontWeight: 600, textAlign: 'center', mb: '20px', color: c.text }}>Settings</Box>
           <Box>
+            {!install.installed && (
+              <Box
+                onClick={() => {
+                  setShowSettingsModal(false);
+                  openInstallPrompt();
+                }}
+                sx={{ display: 'flex', alignItems: 'center', gap: '14px', py: '14px', cursor: 'pointer' }}
+              >
+                <InstallMobileIcon sx={{ fontSize: 24, color: c.isDark ? 'rgba(255,255,255,0.7)' : '#000000' }} />
+                <Box sx={{ fontSize: 16, fontWeight: 500, color: c.text }}>Install the app</Box>
+              </Box>
+            )}
             <Box
               onClick={() => {
                 setShowSettingsModal(false);

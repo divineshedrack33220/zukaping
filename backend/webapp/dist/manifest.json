@@ -1,12 +1,15 @@
 {
+  "id": "/",
   "name": "Zukaping",
   "short_name": "Zukaping",
   "description": "Chat, meet and connect in real time",
+  "lang": "en",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#026AFD",
-  "theme_color": "#026AFD",
+  "theme_color": "#121212",
   "orientation": "portrait-primary",
   "icons": [
     {
@@ -26,6 +29,29 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "People nearby",
+      "short_name": "Nearby",
+      "description": "See who is around you right now",
+      "url": "/nearby",
+      "icons": [{ "src": "/logo192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Chats",
+      "short_name": "Chats",
+      "description": "Jump back into your conversations",
+      "url": "/chats",
+      "icons": [{ "src": "/logo192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Post a request",
+      "short_name": "Request",
+      "description": "Tell the people around you what you are looking for",
+      "url": "/create-post",
+      "icons": [{ "src": "/logo192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }
