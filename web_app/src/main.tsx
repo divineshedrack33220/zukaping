@@ -32,7 +32,6 @@ import { NavBadgesProvider, useNavBadgeCounts } from './contexts/nav-badges.cont
 import { InstallPrompt } from './components/common/install-prompt';
 
 import { SplashScreen } from './screens/splash-screen';
-import { OnboardingScreen } from './screens/onboarding-screen';
 import { LoginScreen } from './screens/login-screen';
 import { SignupScreen } from './screens/signup-screen';
 import { FeedScreen } from './screens/feed-screen';
@@ -83,22 +82,17 @@ const AppRoutes = () => {
     </MobileFrame>
   );
 
-  const preAuth =
-    path === '/splash' || path === '/onboarding' || path === '/login' || path === '/signup';
+  const preAuth = path === '/splash' || path === '/login' || path === '/signup';
 
   if (preAuth) {
     if (path === '/splash') return shell(<SplashScreen />);
-    if (path === '/onboarding') return shell(<OnboardingScreen />);
     if (path === '/login') return shell(<LoginScreen />);
     return shell(<SignupScreen />);
   }
 
   if (isLoading) return shell(<LoadingBody />);
 
-  if (!token) {
-    const hasSeenOnboarding = localStorage.getItem('has_seen_onboarding');
-    return <Navigate to={hasSeenOnboarding ? '/login' : '/onboarding'} replace />;
-  }
+  if (!token) return <Navigate to="/login" replace />;
 
   const isTabRoute = TAB_PATHS.includes(path);
 

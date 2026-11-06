@@ -71,7 +71,7 @@ export const SplashScreen = () => {
       if (!mounted.current) return;
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       if (!token) {
-        go('/onboarding');
+        go('/login');
         return;
       }
       try {
@@ -82,7 +82,7 @@ export const SplashScreen = () => {
         } else {
           localStorage.removeItem('token');
           sessionStorage.removeItem('token');
-          go('/onboarding');
+          go('/login');
         }
       } catch {
         const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
@@ -90,12 +90,12 @@ export const SplashScreen = () => {
           wsService.connect(token);
           go('/feed');
         } else {
-          go('/onboarding');
+          go('/login');
         }
       }
       // Flutter arms the 5 s fallback only once the token/profile check has
       // completed (splash_screen.dart:133-138), not at mount.
-      fallback = window.setTimeout(() => go('/onboarding'), 5000);
+      fallback = window.setTimeout(() => go('/login'), 5000);
     };
 
     void check();

@@ -39,6 +39,16 @@ const MessageImages = ({
   const cells = urls.slice(0, 4);
   const count = urls.length;
 
+  // The 2px cell gaps are the only separator a grid has, so they must read as
+  // the chat backdrop rather than whatever the bubble is painted with.
+  const shell = {
+    width: 240,
+    maxWidth: '100%',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    bgcolor: c.isDark ? '#121212' : '#F8F9FA',
+  };
+
   const image = (url: string, index: number) => (
     <Box
       key={`${url}-${index}`}
@@ -101,7 +111,7 @@ const MessageImages = ({
 
   if (count === 1) {
     return (
-      <Box sx={{ width: 240, height: 240, maxWidth: '100%', borderRadius: '12px', overflow: 'hidden' }}>
+      <Box sx={{ ...shell, aspectRatio: '1 / 1' }}>
         {image(urls[0], 0)}
       </Box>
     );
@@ -110,11 +120,8 @@ const MessageImages = ({
     return (
       <Box
         sx={{
-          width: 240,
-          height: 171.43,
-          maxWidth: '100%',
-          borderRadius: '12px',
-          overflow: 'hidden',
+          ...shell,
+          aspectRatio: '7 / 5',
           display: 'flex',
           gap: '2px',
         }}
@@ -131,11 +138,8 @@ const MessageImages = ({
     return (
       <Box
         sx={{
-          width: 240,
-          height: 240,
-          maxWidth: '100%',
-          borderRadius: '12px',
-          overflow: 'hidden',
+          ...shell,
+          aspectRatio: '1 / 1',
           display: 'flex',
           gap: '2px',
         }}
@@ -151,11 +155,8 @@ const MessageImages = ({
   return (
     <Box
       sx={{
-        width: 240,
-        height: 240,
-        maxWidth: '100%',
-        borderRadius: '12px',
-        overflow: 'hidden',
+        ...shell,
+        aspectRatio: '1 / 1',
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
         gridTemplateRows: '1fr 1fr',
@@ -195,6 +196,15 @@ export const MessageBubble = ({
   // padding; its reaction then sits under it instead of clipping the corner.
   const bareEmoji = isEmoji && images.length === 0 && !message.replyToId && !(showSender && !isMe);
   const reactionHangsBelow = bareEmoji && reactions.length > 0;
+  // A caption is only present when the content is an object rather than the
+  // plain URL array the composer sends, so an image message is usually bare.
+  const hasCaption = images.length > 0 && content.includes('"') && !content.trim().startsWith('[');
+  // A group photo still needs its padding: the coloured sender name lives
+  // inside the bubble and would otherwise sit flush against the picture.
+  const imageOnly = images.length > 0 && !hasCaption && !(showSender && !isMe);
+  // The chip hangs 16px up into the bubble from its corner; without extra
+  // bottom padding it lands on the descenders of the last line of text.
+  const roomForReaction = reactions.length > 0 && !reactionHangsBelow && !imageOnly;
 
   const onTouchStart = (event: React.TouchEvent) => {
     startX.current = event.touches[0]?.clientX ?? null;
@@ -290,19 +300,23 @@ export const MessageBubble = ({
       >
         <Box
           sx={{
-            p: bareEmoji ? 0 : '10px 16px',
+            p: bareEmoji || imageOnly ? 0 : roomForReaction ? '10px 16px 18px' : '10px 16px',
+            overflow: imageOnly ? 'hidden' : undefined,
             background: isMe && !bareEmoji ? '#026AFD' : undefined,
             // Received bubbles need to lift off the chat backdrop (#121212 /
             // #F8F9FA); matching the backdrop left only a hairline rim, which
             // reads as an empty outlined box on short messages.
             bgcolor: isMe || bareEmoji ? undefined : c.isDark ? '#1C1C1E' : '#FFFFFF',
             border:
-              isMe || bareEmoji
+              isMe || bareEmoji || imageOnly
                 ? undefined
                 : `1px solid ${c.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}`,
-            borderRadius: '20px',
-            borderBottomLeftRadius: isMe ? '20px' : '4px',
-            borderBottomRightRadius: isMe ? '4px' : '20px',
+            // A photo fills its bubble corner to corner, so the bubble takes the
+            // grid's radius; the larger text radius would leave a wedge of the
+            // bubble's own colour showing at each corner.
+            borderRadius: imageOnly ? '12px' : '20px',
+            borderBottomLeftRadius: imageOnly ? '12px' : isMe ? '20px' : '4px',
+            borderBottomRightRadius: imageOnly ? '12px' : isMe ? '4px' : '20px',
             boxShadow: bareEmoji
               ? 'none'
               : isMe
@@ -391,9 +405,7 @@ export const MessageBubble = ({
                 urls={images}
                 onTap={(index) => onImageTap?.(images, index)}
               />
-              {content.includes('"') && !content.trim().startsWith('[') && (
-                <Box sx={{ pt: '8px' }}>{bubbleText}</Box>
-              )}
+              {hasCaption && <Box sx={{ p: '8px 12px 10px' }}>{bubbleText}</Box>}
             </>
           ) : (
             bubbleText

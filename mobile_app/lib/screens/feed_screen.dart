@@ -43,8 +43,8 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
   // Broadcast scanning
   bool _isScanning = false;
   bool _showBroadcastOverlay = false;
-  String _broadcastText = 'Broadcasting signal...';
-  String _broadcastSubtext = 'Searching for users in your area';
+  String _broadcastText = 'People nearby...';
+  String _broadcastSubtext = 'Looking for people around you';
   List<Post> _broadcastResults = [];
   Timer? _refreshTimer;
   Set<String> _favoriteUserIds = {};
@@ -248,11 +248,11 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
             .toList();
         
         if (_nearbyUsers.isNotEmpty) {
-          _broadcastText = '${_nearbyUsers.length} user${_nearbyUsers.length > 1 ? 's' : ''} found nearby';
-          _broadcastSubtext = 'Scroll to browse';
+          _broadcastText = '${_nearbyUsers.length} ${_nearbyUsers.length == 1 ? 'person' : 'people'} nearby';
+          _broadcastSubtext = 'Tap anyone to see their profile';
         } else {
-          _broadcastText = 'No signals detected';
-          _broadcastSubtext = 'No users found in your immediate area';
+          _broadcastText = 'Nobody nearby yet';
+          _broadcastSubtext = 'Try moving to a different location or check back later';
         }
       });
     }
@@ -416,8 +416,8 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     setState(() {
       _isScanning = true;
       _showBroadcastOverlay = true;
-      _broadcastText = 'Broadcasting signal...';
-      _broadcastSubtext = 'Searching for users in your area';
+      _broadcastText = 'People nearby...';
+      _broadcastSubtext = 'Looking for people around you';
       _broadcastResults = [];
     });
 
@@ -438,15 +438,15 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
               _nearbyUsers = users.map((u) => Post.fromJson(u)).toList();
               
               if (i == 2) {
-                _broadcastText = '${_nearbyUsers.length} user${_nearbyUsers.length > 1 ? 's' : ''} found nearby';
-                _broadcastSubtext = 'Scroll to browse';
+                _broadcastText = '${_nearbyUsers.length} ${_nearbyUsers.length == 1 ? 'person' : 'people'} nearby';
+                _broadcastSubtext = 'Tap anyone to see their profile';
                 _broadcastResults = _nearbyUsers;
               }
             });
           } else if (i == 2 && mounted) {
             setState(() {
-              _broadcastText = 'No signals detected';
-              _broadcastSubtext = 'No users found in your immediate area';
+              _broadcastText = 'Nobody nearby yet';
+              _broadcastSubtext = 'Try moving to a different location or check back later';
             });
           }
         } catch (e) {
@@ -456,8 +456,8 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _broadcastText = 'Broadcast failed';
-          _broadcastSubtext = 'Signal transmission interrupted';
+          _broadcastText = 'Scan failed';
+          _broadcastSubtext = 'Could not read your location';
         });
         _showToast('Failed to scan nearby users');
       }

@@ -28,8 +28,9 @@ import { getCurrentPosition, wait } from '../utils/geo';
  */
 
 /* Visitors read "scanning" and expect people; "broadcasting a signal" reads
-   like radio equipment and says nothing about who is close by. */
-const SCAN_TITLE = 'Scanning nearby…';
+   like radio equipment and says nothing about who is close by. The overlay
+   paints its own animated ellipsis, so the dots stay out of the string. */
+const SCAN_TITLE = 'People nearby';
 const SCAN_SUB = 'Looking for people around you';
 const scanFound = (count: number) => `${count} ${count === 1 ? 'person' : 'people'} nearby`;
 const SCAN_FOUND_SUB = 'Tap anyone to see their profile';

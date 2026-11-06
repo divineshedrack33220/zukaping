@@ -357,6 +357,7 @@ export const RadarOverlay = ({
           {scanning ? (
             <>
               <Box
+                aria-label={`${title}...`}
                 sx={{
                   mt: '40px',
                   fontSize: 20,
@@ -367,6 +368,24 @@ export const RadarOverlay = ({
                 }}
               >
                 {title}
+                {/* Dots rather than one "…" glyph: the sweep is still running,
+                    and three lights coming up in turn say that better than a
+                    static mark does. */}
+                <Box component="span" sx={{ letterSpacing: '1px' }}>
+                  {[0, 1, 2].map((i) => (
+                    <Box
+                      key={i}
+                      component="span"
+                      sx={{
+                        display: 'inline-block',
+                        animation: 'radar-dot 1400ms ease-in-out infinite',
+                        animationDelay: `${i * 220}ms`,
+                      }}
+                    >
+                      .
+                    </Box>
+                  ))}
+                </Box>
               </Box>
               <Box
                 sx={{
@@ -442,6 +461,10 @@ export const RadarOverlay = ({
           0% { opacity: 1; transform: scale(1); }
           12% { opacity: 0.85; transform: scale(0.92); }
           55%, 100% { opacity: 0; transform: scale(0.7); }
+        }
+        @keyframes radar-dot {
+          0%, 55%, 100% { opacity: 0.25; }
+          25% { opacity: 1; }
         }
       `}</style>
     </Box>
