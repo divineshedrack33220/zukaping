@@ -186,9 +186,8 @@ export const RoomCarousel = ({
     <>
       <Box
         sx={{
-          bgcolor: c.surface,
+          bgcolor: c.scaffold,
           borderBottom: `1px solid ${c.border}`,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
         }}
       >
         <Box
@@ -297,7 +296,7 @@ const RoomPreviewSheet = ({
     if (!Array.isArray(list)) return [];
     return list.map((item: any, index: number) => ({
       id: String(item?.id ?? item?._id ?? index),
-      senderName: String(item?.senderName ?? item?.sender?.name ?? 'User'),
+      senderName: String(item?.sender_name ?? item?.senderName ?? item?.sender?.name ?? 'User'),
       content: String(item?.content ?? ''),
     }));
   }, [details]);

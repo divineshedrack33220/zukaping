@@ -6,13 +6,14 @@ import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import BrokenImageIcon from '@mui/icons-material/BrokenImage';
 import { usePalette } from '../../contexts/app-theme.context';
 import { useAuth } from '../../contexts/auth.context';
 import { useSnackbar } from '../../contexts/snackbar.context';
 import { apiService } from '../../services/api.service';
 import { wsService } from '../../services/ws.service';
 import { Chat, Message } from '../../models/chat.models';
-import { firstInitial, pickAvatar } from '../../utils/format';
+import { firstInitial, parseTimestamp, pickAvatar } from '../../utils/format';
 import { isImageMessage, parseImageUrls } from '../../utils/messages';
 import { ConfirmDialog } from '../common/confirm-dialog';
 import { useImageSourceSheet } from '../common/image-source-sheet';
@@ -62,6 +63,53 @@ const RoomAvatar = ({ image, name, size = 32 }: { image: string | null; name: st
   );
 };
 
+const RoomImageTile = ({ url, onTap }: { url: string; onTap: () => void }) => {
+  const c = usePalette();
+  const [failed, setFailed] = useState(false);
+  return (
+    <Box
+      role="button"
+      tabIndex={0}
+      aria-label="Open photo"
+      onClick={onTap}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onTap();
+        }
+      }}
+      sx={{
+        position: 'relative',
+        overflow: 'hidden',
+        minWidth: 0,
+        cursor: 'pointer',
+        bgcolor: c.isDark ? '#1C1C1E' : '#EEEEEE',
+      }}
+    >
+      {failed ? (
+        <BrokenImageIcon
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: 26,
+            color: '#9E9E9E',
+          }}
+        />
+      ) : (
+        <Box
+          component="img"
+          src={url}
+          alt=""
+          onError={() => setFailed(true)}
+          sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      )}
+    </Box>
+  );
+};
+
 const RoomBubble = ({
   message,
   isMe,
@@ -89,6 +137,8 @@ const RoomBubble = ({
       }}
     >
       {images.length > 0 ? (
+        /* Tiles, not four full-size images stacked in one box: the previous
+           markup painted every url on top of the last one. */
         <Box
           sx={{
             width: 200,
@@ -96,19 +146,15 @@ const RoomBubble = ({
             maxWidth: '100%',
             borderRadius: '12px',
             overflow: 'hidden',
-            position: 'relative',
+            display: 'grid',
+            gap: '2px',
+            gridTemplateColumns: `repeat(${images.length === 1 ? 1 : 2}, 1fr)`,
+            gridAutoRows: '1fr',
             bgcolor: c.isDark ? '#1C1C1E' : '#EEEEEE',
           }}
         >
           {images.slice(0, 4).map((url, index) => (
-            <Box
-              key={`${url}-${index}`}
-              component="img"
-              src={url}
-              alt=""
-              sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
-              onClick={() => onImageTap?.(images, index)}
-            />
+            <RoomImageTile key={`${url}-${index}`} url={url} onTap={() => onImageTap?.(images, index)} />
           ))}
         </Box>
       ) : (
@@ -198,15 +244,33 @@ export const RoomChatScreen = () => {
   const loadRoom = useCallback(async () => {
     if (!roomId) return;
     try {
-      const [room, history] = await Promise.all([
-        apiService.getRoomDetails(roomId),
-        apiService.getMessages(roomId),
-      ]);
-      const data: any = room;
+      const details: any = await apiService.getRoomDetails(roomId);
+      const data: any = details?.room ?? details ?? {};
       setRoomName(data?.name || data?.groupName || 'Room Chat');
-      setRoomAvatar(data?.groupAvatar ?? data?.partnerAvatar ?? null);
-      setRoomDescription(data?.groupDescription ?? '');
-      setMemberCount(Number(data?.currentMembers ?? data?.participants?.length ?? 0));
+      setRoomAvatar(data?.avatar_url ?? data?.avatarUrl ?? data?.groupAvatar ?? null);
+      setRoomDescription(data?.description ?? data?.groupDescription ?? '');
+      setMemberCount(
+        Number(details?.member_count ?? data?.current_members ?? data?.currentMembers ?? 0)
+      );
+      /* Full history lives in the chats collection, and a room you never joined has
+         no chat row naming you, so asking for it is a guaranteed 403. Read the room's
+         own preview instead. */
+      const joined = Boolean(details?.is_joined ?? data?.is_joined);
+      const history = joined
+        ? await apiService.getMessages(roomId).catch(() => [] as Message[])
+        : ((details?.preview_messages ?? data?.preview_messages ?? []) as any[]).map(
+            (m) =>
+              ({
+                id: m.id,
+                senderId: '',
+                senderName: m.sender_name,
+                content: m.content,
+                type: m.type,
+                createdAt: parseTimestamp(m.created_at),
+                isRead: true,
+                reactions: {},
+              }) as Message
+          );
       setMessages(history);
       wsService.send('subscribe_chat', { chatId: roomId });
       setLoading(false);
@@ -437,7 +501,7 @@ export const RoomChatScreen = () => {
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', mt: '2px' }}>
                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#34C759' }} />
-                <Box sx={{ fontSize: 11, fontWeight: 600, color: '#757575' }}>👥 {memberCount} members online</Box>
+                <Box sx={{ fontSize: 11, fontWeight: 600, color: '#757575' }}>👥 {memberCount} members</Box>
               </Box>
             </Box>
           </Box>
@@ -445,7 +509,7 @@ export const RoomChatScreen = () => {
             role="button"
             aria-label="Menu"
             onClick={() => setLeaveOpen(true)}
-            sx={{ width: 48, height: 48, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#000000DE', flexShrink: 0 }}
+            sx={{ width: 48, height: 48, display: 'grid', placeItems: 'center', cursor: 'pointer', color: c.text, flexShrink: 0 }}
           >
             <MoreHorizIcon sx={{ fontSize: 24 }} />
           </Box>

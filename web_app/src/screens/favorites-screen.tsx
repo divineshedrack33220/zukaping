@@ -461,7 +461,7 @@ export const FavoritesScreen = () => {
                 width: 48,
                 height: 48,
                 borderRadius: '50%',
-                bgcolor: '#FFECEF',
+                bgcolor: 'rgba(233,30,99,0.16)',
                 boxShadow: '0 3px 6px rgba(0,0,0,0.04)',
                 display: 'grid',
                 placeItems: 'center',

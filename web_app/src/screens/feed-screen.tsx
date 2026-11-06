@@ -78,7 +78,7 @@ export const FeedScreen = () => {
   const loadNearby = useCallback(async () => {
     try {
       const position = await getCurrentPosition();
-      const users = await apiService.getNearbyUsers(position?.lat ?? 0, position?.lng ?? 0);
+      const users = await apiService.getNearbyUsers(position?.lat, position?.lng);
       setNearby(users);
     } catch {
       /* Flutter silently ignores auto-load failures. */
@@ -233,12 +233,10 @@ export const FeedScreen = () => {
     let delivered = false;
     try {
       const position = await getCurrentPosition();
-      const lat = position?.lat ?? 0;
-      const lng = position?.lng ?? 0;
       for (let attempt = 0; attempt < 3; attempt += 1) {
         await wait(700);
         try {
-          const users = await apiService.getNearbyUsers(lat, lng);
+          const users = await apiService.getNearbyUsers(position?.lat, position?.lng);
           delivered = true;
           if (users.length) {
             setNearby(users);

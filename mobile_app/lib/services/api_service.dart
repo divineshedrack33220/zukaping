@@ -244,8 +244,11 @@ class ApiService {
       await prefs.setString('cached_feed_${_currentUserId()}', jsonEncode(feedList));
       return feedList;
     } catch (e) {
+      // Offline fallback: read the cache, keep the session. The clearCaches()
+      // call used here also removed 'token', so one sleeping Render backend
+      // signing a 503 logged the user out — and it wiped the very cache this
+      // block then tried to read.
       debugPrint('⚠️ getFeed offline fallback: $e');
-      await clearCaches();
       final cached = prefs.getString('cached_feed_${_currentUserId()}');
       if (cached != null) {
         return jsonDecode(cached);
@@ -279,7 +282,6 @@ class ApiService {
       throw Exception('Server error: ${response.statusCode}');
     } catch (e) {
       debugPrint('⚠️ getChats offline fallback: $e');
-      await clearCaches();
       final cached = prefs.getString('cached_chats_${_currentUserId()}');
       if (cached != null) {
         return jsonDecode(cached);
@@ -338,7 +340,6 @@ class ApiService {
       return messagesList;
     } catch (e) {
       debugPrint('⚠️ getMessages offline fallback for chat $chatId: $e');
-      await clearCaches();
       final cached = prefs.getString('cached_messages_$chatId${_currentUserId()}');
       if (cached != null) {
         final decoded = jsonDecode(cached);
@@ -387,7 +388,6 @@ class ApiService {
       throw Exception('Server error: ${response.statusCode}');
     } catch (e) {
       debugPrint('⚠️ getFavorites offline fallback: $e');
-      await clearCaches();
       final cached = prefs.getString('cached_favorites_${_currentUserId()}');
       if (cached != null) {
         return jsonDecode(cached);
@@ -444,7 +444,6 @@ class ApiService {
       throw Exception('Server error: ${response.statusCode}');
     } catch (e) {
       debugPrint('⚠️ getNearbyUsers offline fallback: $e');
-      await clearCaches();
       final cached = prefs.getString('cached_nearby_users_${_currentUserId()}');
       if (cached != null) {
         final decoded = jsonDecode(cached);
@@ -660,18 +659,22 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  /// Clear all cached data from SharedPreferences
+  /// Cached lists belong to whoever wrote them, so they have to leave with the
+  /// account. The exact-key removes this replaces never matched anything: the
+  /// writers namespace every key `cached_<thing>_<userId>`.
+  static Future<void> clearDataCaches() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final key in prefs.getKeys().where((key) => key.startsWith('cached_')).toList()) {
+      await prefs.remove(key);
+    }
+  }
+
+  /// Cached data plus the stored session — logout, expired token, deleted account.
   static Future<void> clearCaches() async {
     final prefs = await SharedPreferences.getInstance();
-    // Remove all cached keys that could contain data from a previous user session
     await prefs.remove('token');
     await prefs.remove('userId');
-    await prefs.remove('cached_feed');
-    await prefs.remove('cached_chats');
-    await prefs.remove('cached_messages_');
-    await prefs.remove('cached_favorites');
-    await prefs.remove('cached_nearby_users');
-    await prefs.remove('cached_rooms');
+    await clearDataCaches();
   }
 
   // --- Exclusive Content & Pay-to-Unlock API Methods ---

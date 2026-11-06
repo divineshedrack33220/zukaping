@@ -25,6 +25,7 @@ import { RoomCarousel } from '../components/rooms/room-carousel';
 import { FlutterSheet } from '../components/common/flutter-sheet';
 import { useImageSourceSheet } from '../components/common/image-source-sheet';
 import { firstInitial, formatChatTimestamp, pickAvatar } from '../utils/format';
+import { NAV_CLEARANCE } from '../styles/tokens';
 
 const AVATAR_PLACEHOLDER_DARK = '#1C1C1E';
 const AVATAR_PLACEHOLDER_LIGHT = '#F5F5F5';
@@ -243,6 +244,7 @@ const FindFriendsSheet = ({
   onClose: () => void;
 }) => {
   const navigate = useNavigate();
+  const c = usePalette();
   const { showToast } = useSnackbar();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NearbyUser[]>([]);
@@ -293,7 +295,7 @@ const FindFriendsSheet = ({
       onClose={onClose}
       handle={false}
       maxHeight="calc(var(--app-h, 100dvh) * 0.85)"
-      background="#FFFFFF"
+      background={c.isDark ? '#1C1C1E' : '#FFFFFF'}
       padding={0}
     >
       <Box sx={{ height: 'calc(var(--app-h, 100dvh) * 0.85)', display: 'flex', flexDirection: 'column' }}>
@@ -303,7 +305,7 @@ const FindFriendsSheet = ({
             width: 48,
             height: 5,
             borderRadius: '2.5px',
-            bgcolor: '#E0E0E0',
+            bgcolor: c.isDark ? '#424242' : '#E0E0E0',
             mx: 'auto',
             flexShrink: 0,
           }}
@@ -315,7 +317,7 @@ const FindFriendsSheet = ({
             fontWeight: 700,
             lineHeight: 1.4,
             textAlign: 'center',
-            color: '#000000DE',
+            color: c.isDark ? '#FFFFFF' : '#000000DE',
             flexShrink: 0,
           }}
         >
@@ -329,7 +331,7 @@ const FindFriendsSheet = ({
               alignItems: 'center',
               height: 48,
               borderRadius: '25px',
-              bgcolor: '#F5F5F5',
+              bgcolor: c.isDark ? '#2C2C2E' : '#F5F5F5',
               px: '20px',
             }}
           >
@@ -340,12 +342,13 @@ const FindFriendsSheet = ({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search by name..."
+              aria-label="Search friends by name"
               sx={{
                 flex: 1,
                 border: 'none',
                 outline: 'none',
                 bgcolor: 'transparent',
-                color: '#000000DE',
+                color: c.isDark ? '#FFFFFF' : '#000000DE',
                 fontSize: 16,
                 fontFamily: 'inherit',
                 p: 0,
@@ -395,7 +398,7 @@ const FindFriendsSheet = ({
                       height: 52,
                       borderRadius: '50%',
                       overflow: 'hidden',
-                      bgcolor: '#F5F5F5',
+                      bgcolor: c.isDark ? AVATAR_PLACEHOLDER_DARK : AVATAR_PLACEHOLDER_LIGHT,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -424,7 +427,7 @@ const FindFriendsSheet = ({
                         fontSize: 16,
                         fontWeight: 600,
                         lineHeight: 1.4,
-                        color: '#000000DE',
+                        color: c.isDark ? '#FFFFFF' : '#000000DE',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -883,7 +886,7 @@ const CreateGroupSheet = ({
                       height: 52,
                       borderRadius: '50%',
                       overflow: 'hidden',
-                      bgcolor: '#F5F5F5',
+                      bgcolor: c.isDark ? AVATAR_PLACEHOLDER_DARK : AVATAR_PLACEHOLDER_LIGHT,
                       display: 'grid',
                       placeItems: 'center',
                       flexShrink: 0,
@@ -1400,21 +1403,7 @@ export const ChatsScreen = () => {
     if (loading) return renderShimmer();
     if (error) return renderError();
     if (!filtered.length) return renderEmpty();
-    return (
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto',
-          overscrollBehaviorY: 'contain',
-          px: '24px',
-          pb: '80px',
-          scrollbarWidth: 'thin',
-        }}
-      >
-        {filtered.map(renderRow)}
-      </Box>
-    );
+    return <Box sx={{ px: '24px', pb: NAV_CLEARANCE }}>{filtered.map(renderRow)}</Box>;
   };
 
   return (
@@ -1441,12 +1430,12 @@ export const ChatsScreen = () => {
         }
       />
 
-      {/* Search bar — soft grey well with a lit top edge on the dark scaffold */}
+      {/* Search bar — white in light mode, lifted in dark, exactly like Flutter */}
       <Box
         sx={{
           p: '16px',
           flexShrink: 0,
-          bgcolor: c.surface,
+          bgcolor: c.isDark ? c.surface : c.scaffold,
           borderBottom: `1px solid ${c.border}`,
         }}
       >
@@ -1489,9 +1478,21 @@ export const ChatsScreen = () => {
         </Box>
       </Box>
 
-      <RoomCarousel rooms={rooms} onRefresh={() => void loadChats(false)} />
-
-      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      {/* One scroll surface, so the rooms rail rides away with the list instead
+          of pinning the chats to the bottom half of a short iPhone screen. */}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          overscrollBehaviorY: 'contain',
+          scrollbarWidth: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+        }}
+      >
+        <RoomCarousel rooms={rooms} onRefresh={() => void loadChats(false)} />
         {renderBody()}
       </Box>
 

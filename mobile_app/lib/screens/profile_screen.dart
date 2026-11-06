@@ -196,8 +196,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
+    // Removing only the token left the previous account's cached feed, chats
+    // and messages on the device for whoever signed in next.
+    await ApiService.clearCaches();
     if (mounted) {
       _showToast('Logged out');
       Navigator.pushReplacementNamed(context, '/login');

@@ -650,11 +650,16 @@ class ApiService {
 
   /* ---------------------------- nearby ---------------------------- */
 
-  async getNearbyUsers(lat: number, lng: number): Promise<NearbyUser[]> {
+  /**
+   * Omitted coordinates make the backend rank from the position stored on the
+   * profile. Passing `0, 0` instead would ask it to measure from the Atlantic
+   * off Ghana, and every row would come back labelled "Nearby".
+   */
+  async getNearbyUsers(lat?: number, lng?: number): Promise<NearbyUser[]> {
     const data = await this.request<any>({
       url: '/users/nearby',
       method: 'GET',
-      params: { lat, lng },
+      params: lat != null && lng != null ? { lat, lng } : undefined,
     });
     const list = Array.isArray(data) ? data : data?.users ?? [];
     return list.map(normaliseNearby);
@@ -714,17 +719,18 @@ class ApiService {
     };
   }
 
-  async reportUser(userId: string, reason = 'Inappropriate behavior'): Promise<boolean> {
-    try {
-      await this.request<unknown>({
-        url: '/reports',
-        method: 'POST',
-        data: { targetUserId: userId, reason },
-      });
-      return true;
-    } catch {
-      return true; // Graceful mock if backend table not present
-    }
+  /**
+   * POST /reports. The moderator queue keys every flag by targetType/targetId,
+   * and a rejected report used to be swallowed here so the UI could always show
+   * "Reported" - the report was silently never filed.
+   */
+  async reportUser(userId: string, reason: string, details?: string): Promise<boolean> {
+    await this.request<unknown>({
+      url: '/reports',
+      method: 'POST',
+      data: { targetType: 'user', targetId: userId, reason, details: details ?? '' },
+    });
+    return true;
   }
 
   async createChat(userId: string): Promise<Chat> {

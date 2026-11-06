@@ -544,12 +544,16 @@ export const ProfileScreen: React.FC = () => {
               border: `1px solid ${c.isDark ? '#2C2C2E' : '#EEEEEE'}`,
             }}
           >
-            <Box sx={{ fontSize: 16, lineHeight: 1.5, color: c.isDark ? '#E0E0E0' : '#666666' }}>{profile.bio || 'No bio yet'}</Box>
+            {/* the pencil is absolutely positioned over this box, so the text needs its own right gutter */}
+            <Box sx={{ fontSize: 16, lineHeight: 1.5, pr: '30px', color: c.isDark ? '#E0E0E0' : '#666666' }}>
+              {profile.bio || 'No bio yet'}
+            </Box>
             <IconButton
               size="small"
               aria-label="Edit bio"
               onClick={() => navigate('/edit-profile')}
-              sx={{ position: 'absolute', top: 8, right: 8, color: '#9E9E9E', p: 0 }}
+              /* p: 0 left a 20 px target beside a paragraph, easy to mis-tap on a phone */
+              sx={{ position: 'absolute', top: 4, right: 4, color: '#9E9E9E', p: '8px' }}
             >
               <EditIcon sx={{ fontSize: 20 }} />
             </IconButton>

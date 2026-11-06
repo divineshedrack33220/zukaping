@@ -54,9 +54,17 @@ const MessageImages = ({
       key={`${url}-${index}`}
       role="button"
       tabIndex={0}
+      aria-label="Open photo"
       onClick={(event) => {
         event.stopPropagation();
         onTap?.(index);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          event.stopPropagation();
+          onTap?.(index);
+        }
       }}
       sx={{
         position: 'relative',
@@ -345,7 +353,15 @@ export const MessageBubble = ({
           {message.replyToId && (
             <Box
               role="button"
+              tabIndex={0}
+              aria-label="Jump to quoted message"
               onClick={() => onQuoteTap?.(message.replyToId as string)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onQuoteTap?.(message.replyToId as string);
+                }
+              }}
               sx={{
                 mb: '8px',
                 p: '8px 12px',

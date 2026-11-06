@@ -27,7 +27,7 @@ export const NearbyScreen: React.FC = () => {
     setError(null);
     try {
       const coords = await getCurrentPosition();
-      const users = await apiService.getNearbyUsers(coords?.lat ?? 0, coords?.lng ?? 0);
+      const users = await apiService.getNearbyUsers(coords?.lat, coords?.lng);
       setPeople(Array.isArray(users) ? users : []);
     } catch {
       setError('Failed to load users');
@@ -88,14 +88,24 @@ export const NearbyScreen: React.FC = () => {
           <UserAvatar name={user.name} avatar={user.avatar} photos={user.photos} size={56} />
         </Box>
       </ListItemIcon>
+      {/* ListItemText wraps both lines in <p>, so neither may hold a <div>:
+          React flags it and the browser re-parents the markup. */}
       <ListItemText
         primary={
-          <Box sx={{ fontSize: 16, fontWeight: 600, color: c.isDark ? '#FFFFFF' : 'rgba(0,0,0,0.87)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Typography
+            component="span"
+            sx={{ display: 'block', fontSize: 16, fontWeight: 600, color: c.isDark ? '#FFFFFF' : 'rgba(0,0,0,0.87)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
             {user.name}
-          </Box>
+          </Typography>
         }
         secondary={
-          <Box sx={{ fontSize: 14, color: c.isDark ? '#BDBDBD' : '#757575' }}>{user.distance || 'Nearby'}</Box>
+          <Typography
+            component="span"
+            sx={{ display: 'block', fontSize: 14, color: c.isDark ? '#BDBDBD' : '#757575' }}
+          >
+            {user.distance || 'Nearby'}
+          </Typography>
         }
       />
       <IconButton

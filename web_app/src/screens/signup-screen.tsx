@@ -18,6 +18,7 @@ import { useImageSourceSheet } from '../components/common/image-source-sheet';
 import { apiService } from '../services/api.service';
 import { wsService } from '../services/ws.service';
 import { FlutterInput } from '../components/common/flutter-input';
+import { GoogleMark } from '../components/common/google-mark';
 import { FlutterSheet } from '../components/common/flutter-sheet';
 import { passwordProblem, signupErrorMessage } from '../utils/password';
 import { requestGoogleCredential } from '../utils/google-auth';
@@ -325,8 +326,16 @@ export const SignupScreen = () => {
               suffix={
                 <Box
                   role="button"
+                  tabIndex={0}
+                  aria-label="Toggle password visibility"
                   onClick={() => setObscure((value) => !value)}
-                  sx={{ display: 'flex', cursor: 'pointer', color: '#BDBDBD' }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setObscure((value) => !value);
+                    }
+                  }}
+                  sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', color: '#BDBDBD', p: '8px', m: '-8px' }}
                 >
                   {obscure ? <VisibilityOffIcon /> : <VisibilityIcon />}
                 </Box>
@@ -343,7 +352,15 @@ export const SignupScreen = () => {
             <Box sx={{ height: 16 }} />
             <Box
               role="button"
+              tabIndex={0}
+              aria-label="Continue with Google"
               onClick={() => !busy && void googleSignIn()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  if (!busy) void googleSignIn();
+                }
+              }}
               sx={{
                 width: '100%',
                 height: 52,
@@ -356,23 +373,30 @@ export const SignupScreen = () => {
                 cursor: 'pointer',
               }}
             >
-              <Box
-                component="img"
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Google_Favicon_2025.svg/250px-Google_Favicon_2025.svg.png"
-                alt=""
-                sx={{ width: 20, height: 20 }}
-              />
-              <Box component="span" sx={{ fontSize: 17, fontWeight: 600 }}>
+              <GoogleMark />
+              <Box component="span" sx={{ fontSize: 17, fontWeight: 600, color: c.text }}>
                 Continue with Google
               </Box>
             </Box>
             <Box sx={{ height: 24 }} />
-            <Box sx={{ textAlign: 'center', fontSize: 14, color: c.isDark ? '#BDBDBD' : '#757575' }}>
-              Already have an account?{' '}
+            {/* same flex footer as the login screen: the link becomes a blockified flex item, so
+                its vertical padding can widen the tap target without moving the line */}
+            <Box
+              sx={{ display: 'flex', justifyContent: 'center', gap: '4px', fontSize: 14, color: c.isDark ? '#BDBDBD' : '#757575' }}
+            >
+              <Box component="span">Already have an account?</Box>
               <Box
                 component="span"
+                role="button"
+                tabIndex={0}
                 onClick={() => navigate('/login')}
-                sx={{ color: '#026AFD', fontWeight: 600, cursor: 'pointer' }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navigate('/login');
+                  }
+                }}
+                sx={{ color: '#026AFD', fontWeight: 600, cursor: 'pointer', py: '11px', my: '-11px' }}
               >
                 Log in
               </Box>

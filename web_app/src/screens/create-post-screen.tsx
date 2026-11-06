@@ -168,9 +168,7 @@ export const CreatePostScreen: React.FC = () => {
                     bgcolor: isSelected ? PRIMARY : c.isDark ? '#1C1C1E' : '#F5F5F5',
                     border: `1px solid ${isSelected ? PRIMARY : c.isDark ? '#2C2C2E' : '#E0E0E0'}`,
                     color: isSelected
-                      ? c.isDark
-                        ? '#000000'
-                        : '#FFFFFF'
+                      ? '#FFFFFF'
                       : c.isDark
                       ? 'rgba(255,255,255,0.7)'
                       : 'rgba(0,0,0,0.87)',
@@ -252,9 +250,7 @@ export const CreatePostScreen: React.FC = () => {
                     bgcolor: isSelected ? PRIMARY : c.isDark ? '#1C1C1E' : '#F5F5F5',
                     border: `1px solid ${isSelected ? PRIMARY : c.isDark ? '#2C2C2E' : '#E0E0E0'}`,
                     color: isSelected
-                      ? c.isDark
-                        ? '#000000'
-                        : '#FFFFFF'
+                      ? '#FFFFFF'
                       : c.isDark
                       ? 'rgba(255,255,255,0.7)'
                       : 'rgba(0,0,0,0.87)',

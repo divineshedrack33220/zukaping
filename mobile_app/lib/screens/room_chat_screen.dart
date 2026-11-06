@@ -394,7 +394,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> with WidgetsBindingObse
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '👥 $_memberCount members online',
+                        '👥 $_memberCount members',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,

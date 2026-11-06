@@ -12,6 +12,7 @@ import { apiService } from '../services/api.service';
 import { wsService } from '../services/ws.service';
 import { FlutterInput } from '../components/common/flutter-input';
 import { FlutterSheet } from '../components/common/flutter-sheet';
+import { GoogleMark } from '../components/common/google-mark';
 import { requestGoogleCredential } from '../utils/google-auth';
 import { passwordProblem } from '../utils/password';
 
@@ -189,6 +190,12 @@ export const LoginScreen = () => {
     }
   };
 
+  const openResetFlow = () => {
+    setResetError('');
+    setResetEmail(email);
+    setReset({ step: 'email', sentTo: '' });
+  };
+
   const resetButton = (label: string, onClick: () => void, disabled = false) => (
     <Box
       role="button"
@@ -260,9 +267,17 @@ export const LoginScreen = () => {
         suffix={
           <Box
             role="button"
+            tabIndex={0}
             aria-label="Toggle password visibility"
             onClick={() => setObscure((value) => !value)}
-            sx={{ display: 'flex', cursor: 'pointer', color: '#9E9E9E' }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setObscure((value) => !value);
+              }
+            }}
+            /* the eye glyph is 24 px; padding + equal negative margin makes it a 40 px target without moving it */
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', color: '#9E9E9E', p: '8px', m: '-8px' }}
           >
             {obscure ? <VisibilityOffIcon sx={{ fontSize: 24 }} /> : <VisibilityIcon sx={{ fontSize: 24 }} />}
           </Box>
@@ -272,12 +287,16 @@ export const LoginScreen = () => {
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: '10px' }}>
         <Box
           role="button"
-          onClick={() => {
-            setResetError('');
-            setResetEmail(email);
-            setReset({ step: 'email', sentTo: '' });
+          tabIndex={0}
+          onClick={openResetFlow}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              openResetFlow();
+            }
           }}
-          sx={{ fontSize: 14, fontWeight: 600, color: '#026AFD', cursor: 'pointer' }}
+          /* py/my pair the 21 px line into a 43 px touch target without changing the gap above the button */
+          sx={{ fontSize: 14, fontWeight: 600, color: '#026AFD', cursor: 'pointer', py: '11px', my: '-11px' }}
         >
           Forgot password?
         </Box>
@@ -327,7 +346,14 @@ export const LoginScreen = () => {
       <Box
         role="button"
         tabIndex={0}
+        aria-label="Continue with Google"
         onClick={() => !loading && void googleSignIn()}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            if (!loading) void googleSignIn();
+          }
+        }}
         sx={{
           width: '100%',
           height: 52,
@@ -341,12 +367,7 @@ export const LoginScreen = () => {
           userSelect: 'none',
         }}
       >
-        <Box
-          component="img"
-          src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Google_Favicon_2025.svg/250px-Google_Favicon_2025.svg.png"
-          alt=""
-          sx={{ width: 20, height: 20 }}
-        />
+        <GoogleMark />
         <Box component="span" sx={{ fontSize: 17, fontWeight: 600, color: c.text }}>
           Continue with Google
         </Box>
@@ -354,13 +375,20 @@ export const LoginScreen = () => {
 
       <Box sx={{ height: 24 }} />
 
-      <Box sx={{ display: 'flex', justifyContent: 'center', fontSize: 14, color: c.text }}>
-        <Box component="span">Don&apos;t have an account? </Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: '4px', fontSize: 14, color: c.text }}>
+        <Box component="span">Don&apos;t have an account?</Box>
         <Box
           component="span"
           role="button"
+          tabIndex={0}
           onClick={() => navigate('/signup')}
-          sx={{ color: '#026AFD', fontWeight: 600, cursor: 'pointer' }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              navigate('/signup');
+            }
+          }}
+          sx={{ color: '#026AFD', fontWeight: 600, cursor: 'pointer', py: '11px', my: '-11px' }}
         >
           Sign up
         </Box>
@@ -485,9 +513,16 @@ export const LoginScreen = () => {
                   suffix={
                     <Box
                       role="button"
+                      tabIndex={0}
                       aria-label="Toggle password visibility"
                       onClick={() => setResetObscure((value) => !value)}
-                      sx={{ display: 'flex', cursor: 'pointer', color: '#9E9E9E' }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setResetObscure((value) => !value);
+                        }
+                      }}
+                      sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', color: '#9E9E9E', p: '8px', m: '-8px' }}
                     >
                       {resetObscure ? (
                         <VisibilityOffIcon sx={{ fontSize: 24 }} />
@@ -512,8 +547,15 @@ export const LoginScreen = () => {
                   <Box component="span">Didn&apos;t get it?</Box>
                   <Box
                     role="button"
+                    tabIndex={0}
                     onClick={() => !resetBusy && void sendResetCode()}
-                    sx={{ color: '#026AFD', fontWeight: 600, cursor: 'pointer' }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        if (!resetBusy) void sendResetCode();
+                      }
+                    }}
+                    sx={{ color: '#026AFD', fontWeight: 600, cursor: 'pointer', py: '11px', my: '-11px' }}
                   >
                     Send a new code
                   </Box>

@@ -13,12 +13,17 @@ type ServerCandidate = {
   label: string;
 };
 
+/**
+ * Only hosts that can actually answer. A probe that dies in DNS or hits a
+ * suspended Render service prints an error the browser owns and we cannot
+ * catch, so every dead candidate here is console noise on real users'
+ * machines. zukaping.com's apex is registered to someone else's Render
+ * account, lemon16 is an unrelated service and zukaping.onrender.com is
+ * suspended; app.zukaping.com stays listed for when the record is added.
+ */
 const PRODUCTION: ServerCandidate[] = [
-  { base: 'https://zukaping.com/api', label: 'zukaping.com' },
-  { base: 'https://app.zukaping.com/api', label: 'app.zukaping.com' },
   { base: 'https://zukaping-backend.onrender.com/api', label: 'zukaping-backend (Render)' },
-  { base: 'https://lemon16.onrender.com/api', label: 'lemon16 (Render)' },
-  { base: 'https://zukaping.onrender.com/api', label: 'zukaping (Render)' },
+  { base: 'https://app.zukaping.com/api', label: 'app.zukaping.com' },
 ];
 
 /**
@@ -122,18 +127,24 @@ let selecting: Promise<ServerCandidate> | null = null;
 let recovering: Promise<string | null> | null = null;
 
 async function select(): Promise<ServerCandidate> {
-  const list = candidateOrder();
+  const [primary, ...rest] = candidateOrder();
 
-  const quick = await sweep(list, FAST_MS);
+  /* The host that served the page also serves the API in every real deployment,
+     so settle for that one probe first. Sweeping all candidates up front used to
+     print a CORS or DNS error per unreachable host, and those are the browser's
+     own console lines - catching the rejected fetch does not remove them. */
+  if (await probe(primary, FAST_MS)) return use(primary);
+
+  const quick = await sweep(rest, FAST_MS);
   if (quick) return use(quick);
 
   // Nothing answered quickly. That usually means the only live backend is
   // asleep, so give it the long timeout before deciding anything.
-  const cold = await sweep(list, COLD_START_MS);
+  const cold = await sweep(rest.length ? rest : [primary], COLD_START_MS);
   if (cold) return use(cold);
 
-  console.warn('[zukaping] no backend answered /health; sending traffic to', list[0].label);
-  return use(list[0]);
+  console.warn('[zukaping] no backend answered /health; sending traffic to', primary.label);
+  return use(primary);
 }
 
 function use(candidate: ServerCandidate): ServerCandidate {

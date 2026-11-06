@@ -251,10 +251,18 @@ export const PostCard = ({
           <Box sx={{ display: 'flex', gap: '12px' }}>
             <Box
               role="button"
+              tabIndex={0}
               aria-label="Ignore"
               onClick={(event) => {
                 event.stopPropagation();
                 onIgnore(post);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onIgnore(post);
+                }
               }}
               sx={{
                 ...ACTION_SX,
@@ -265,14 +273,22 @@ export const PostCard = ({
             </Box>
             <Box
               role="button"
+              tabIndex={0}
               aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
               onClick={(event) => {
                 event.stopPropagation();
                 onFavorite(post);
               }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onFavorite(post);
+                }
+              }}
               sx={{
                 ...ACTION_SX,
-                bgcolor: isFavorited ? '#FFECEF' : c.isDark ? '#2C2C2E' : '#F5F5F5',
+                bgcolor: isFavorited ? 'rgba(233,30,99,0.16)' : c.isDark ? '#2C2C2E' : '#F5F5F5',
               }}
             >
               {isFavorited ? (
@@ -285,12 +301,20 @@ export const PostCard = ({
             </Box>
             <Box
               role="button"
+              tabIndex={0}
               aria-label="Accept request"
               onClick={(event) => {
                 event.stopPropagation();
                 onAccept(post);
               }}
-              sx={{ ...ACTION_SX, bgcolor: '#E5F7FD' }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onAccept(post);
+                }
+              }}
+              sx={{ ...ACTION_SX, bgcolor: 'rgba(2,106,253,0.14)' }}
             >
               <CheckIcon sx={{ fontSize: 24, color: '#026AFD' }} />
             </Box>

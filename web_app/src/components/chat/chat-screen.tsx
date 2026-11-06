@@ -2037,6 +2037,7 @@ export const ChatScreen = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               <InputIconButton
                 active={emojiOpen}
+                label={emojiOpen ? 'Show keyboard' : 'Show emoji picker'}
                 onClick={() => setEmojiOpen((value) => !value)}
                 icon={
                   emojiOpen ? (
@@ -2048,6 +2049,7 @@ export const ChatScreen = () => {
               />
               <Box sx={{ width: 4 }} />
               <InputIconButton
+                label="Take a photo"
                 onClick={() => cameraInputRef.current?.click()}
                 icon={<CameraAltOutlinedIcon sx={{ fontSize: 20, color: '#026AFD' }} />}
               />
@@ -2055,6 +2057,7 @@ export const ChatScreen = () => {
               <InputIconButton
                 active={staged.length > 0}
                 badge={staged.length}
+                label="Attach photos from the gallery"
                 onClick={() => fileInputRef.current?.click()}
                 icon={
                   <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 20, color: '#026AFD' }} />
@@ -2065,6 +2068,7 @@ export const ChatScreen = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               <InputIconButton
                 active={mediaMenuOpen}
+                label={mediaMenuOpen ? 'Close attachment menu' : 'Add an attachment'}
                 onClick={() => setMediaMenuOpen((value) => !value)}
                 icon={
                   <AddRoundedIcon
@@ -2082,11 +2086,13 @@ export const ChatScreen = () => {
                   <Box sx={{ width: 8 }} />
                   <InputIconButton
                     active={emojiOpen}
+                    label="Show emoji picker"
                     onClick={() => setEmojiOpen((value) => !value)}
                     icon={<EmojiEmotionsOutlinedIcon sx={{ fontSize: 20, color: '#026AFD' }} />}
                   />
                   <Box sx={{ width: 4 }} />
                   <InputIconButton
+                    label="Take a photo"
                     onClick={() => cameraInputRef.current?.click()}
                     icon={<CameraAltOutlinedIcon sx={{ fontSize: 20, color: '#026AFD' }} />}
                   />
@@ -2094,6 +2100,7 @@ export const ChatScreen = () => {
                   <InputIconButton
                     active={staged.length > 0}
                     badge={staged.length}
+                    label="Attach photos from the gallery"
                     onClick={() => fileInputRef.current?.click()}
                     icon={
                       <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 20, color: '#026AFD' }} />
@@ -2413,11 +2420,13 @@ export const ChatScreen = () => {
 
 const InputIconButton = ({
   icon,
+  label,
   active,
   badge,
   onClick,
 }: {
   icon: React.ReactNode;
+  label: string;
   active?: boolean;
   badge?: number;
   onClick: () => void;
@@ -2427,7 +2436,14 @@ const InputIconButton = ({
     <Box
       role="button"
       tabIndex={0}
+      aria-label={label}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick();
+        }
+      }}
       sx={{
         position: 'relative',
         width: 40,

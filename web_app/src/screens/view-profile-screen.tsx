@@ -73,6 +73,7 @@ export const ViewProfileScreen: React.FC = () => {
   const [fullscreenPhotos, setFullscreenPhotos] = useState<string[] | null>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState(0);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [showReportConfirm, setShowReportConfirm] = useState(false);
 
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const carouselRef = useRef<HTMLDivElement | null>(null);
@@ -262,13 +263,25 @@ export const ViewProfileScreen: React.FC = () => {
     }
   };
 
-  // Flutter stubs: a single toast, no dialog and no API call.
-  const handleBlockUser = () => {
-    showToast('Block action not implemented');
+  const handleBlockUser = async () => {
+    if (!userId) return;
+    try {
+      await apiService.blockUser(userId);
+      showToast(`${profile?.name ?? 'User'} blocked`);
+      navigate(-1);
+    } catch (err: any) {
+      showToast(err?.response?.data?.error ?? 'Could not block this user');
+    }
   };
 
-  const handleReportUser = () => {
-    showToast('Report action not implemented');
+  const submitReport = async (reason: string) => {
+    if (!userId) return;
+    try {
+      await apiService.reportUser(userId, reason);
+      showToast('Report sent to moderation');
+    } catch (err: any) {
+      showToast(err?.response?.data?.error ?? 'Could not send the report');
+    }
   };
 
   const handleUnlockContent = async (target: ProfileImage) => {
@@ -310,8 +323,8 @@ export const ViewProfileScreen: React.FC = () => {
             bgcolor: c.isDark ? '#121212' : '#FFFFFF',
           }}
         >
-          <IconButton onClick={() => navigate(-1)} sx={{ color: c.isDark ? '#FFFFFF' : '#000000DE' }}>
-            <Box component="span" sx={{ fontSize: 24, lineHeight: 1 }}>‹</Box>
+          <IconButton aria-label="Back" onClick={() => navigate(-1)} sx={{ color: c.isDark ? '#FFFFFF' : '#000000DE' }}>
+            <ArrowBackIcon sx={{ fontSize: 22 }} />
           </IconButton>
         </Box>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: '32px', textAlign: 'center' }}>
@@ -347,8 +360,8 @@ export const ViewProfileScreen: React.FC = () => {
             bgcolor: c.isDark ? '#121212' : '#FFFFFF',
           }}
         >
-          <IconButton onClick={() => navigate(-1)} sx={{ color: c.isDark ? '#FFFFFF' : '#000000DE' }}>
-            <Box component="span" sx={{ fontSize: 24, lineHeight: 1 }}>‹</Box>
+          <IconButton aria-label="Back" onClick={() => navigate(-1)} sx={{ color: c.isDark ? '#FFFFFF' : '#000000DE' }}>
+            <ArrowBackIcon sx={{ fontSize: 22 }} />
           </IconButton>
         </Box>
         <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: '24px' }}>
@@ -401,9 +414,7 @@ export const ViewProfileScreen: React.FC = () => {
         }}
       >
         <IconButton aria-label="Back" onClick={() => navigate(-1)} sx={{ color: c.isDark ? '#FFFFFF' : '#000000DE' }}>
-          <Box component="span" sx={{ fontSize: 24, lineHeight: 1 }}>
-            ‹
-          </Box>
+          <ArrowBackIcon sx={{ fontSize: 22 }} />
         </IconButton>
       </Box>
 
@@ -561,7 +572,7 @@ export const ViewProfileScreen: React.FC = () => {
             >
               {isFavorited ? <FavoriteIcon sx={{ fontSize: 28 }} /> : <FavoriteBorderIcon sx={{ fontSize: 28 }} />}
             </IconButton>
-            <IconButton aria-label="Report" onClick={() => void handleReportUser()} disabled={isUnknown} sx={{ color: '#8E8E8E' }}>
+            <IconButton aria-label="Report" onClick={() => setShowReportConfirm(true)} disabled={isUnknown} sx={{ color: '#8E8E8E' }}>
               <ReportGmailerrorredIcon sx={{ fontSize: 28 }} />
             </IconButton>
             <IconButton aria-label="Block" onClick={() => setShowBlockConfirm(true)} disabled={isUnknown} sx={{ color: '#8E8E8E' }}>
@@ -716,6 +727,13 @@ export const ViewProfileScreen: React.FC = () => {
         />
       )}
 
+      {showReportConfirm && (
+        <ReportDialog
+          onClose={() => setShowReportConfirm(false)}
+          onSubmit={(reason) => void submitReport(reason)}
+        />
+      )}
+
       {/* Fullscreen viewer */}
       <FullScreenViewer open={fullscreenPhotos != null} images={fullscreenPhotos ?? []} initialIndex={fullscreenIndex} onClose={() => setFullscreenPhotos(null)} />
     </Box>
@@ -741,8 +759,81 @@ const BlockDialog = ({
         <Box sx={{ fontSize: 18, fontWeight: 700, mb: '10px', color: '#E53935' }}>Block User?</Box>
         <Box sx={{ fontSize: 14, color: c.isDark ? '#E0E0E0' : '#666', lineHeight: 1.4, mb: '24px' }}>Are you sure you want to block {name}? You won't see their posts or messages.</Box>
         <Box sx={{ display: 'flex', gap: '12px' }}>
-          <Box onClick={onClose} sx={{ flex: 1, py: '12px', borderRadius: '12px', border: `1px solid ${c.isDark ? '#3A3A3C' : '#DDD'}`, bgcolor: c.isDark ? '#2C2C2E' : '#FFFFFF', color: c.text, fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</Box>
-          <Box onClick={() => { onClose(); onConfirm(); }} sx={{ flex: 1, py: '12px', borderRadius: '12px', border: 'none', bgcolor: '#E53935', color: '#FFFFFF', fontSize: 14, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Block</Box>
+          <Button variant="outlined" onClick={onClose} sx={{ flex: 1, height: 44, borderRadius: '12px', border: `1px solid ${c.isDark ? '#3A3A3C' : '#DDD'}`, bgcolor: c.isDark ? '#2C2C2E' : '#FFFFFF', color: c.text, fontSize: 14, fontWeight: 600 }}>Cancel</Button>
+          <Button variant="contained" onClick={() => { onClose(); onConfirm(); }} sx={{ flex: 1, height: 44, borderRadius: '12px', border: 'none', bgcolor: '#E53935', color: '#FFFFFF', fontSize: 14, fontWeight: 700, '&:hover': { bgcolor: '#D32F2F' } }}>Block</Button>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+/** The reasons a moderator can act on; the server files whatever string is sent. */
+const REPORT_REASONS = [
+  'Spam or scam',
+  'Inappropriate content',
+  'Harassment or bullying',
+  'Fake profile',
+  'Nudity or sexual content',
+  'Something else',
+];
+
+const ReportDialog = ({
+  onClose,
+  onSubmit,
+}: {
+  onClose: () => void;
+  onSubmit: (reason: string) => void;
+}) => {
+  const c = usePalette();
+  const [reason, setReason] = useState<string | null>(null);
+  return (
+    <Box sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(0,0,0,0.6)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', px: '20px' }}>
+      <Box sx={{ bgcolor: c.isDark ? '#1C1C1E' : '#FFFFFF', border: `1px solid ${c.isDark ? '#2C2C2E' : '#E0E0E0'}`, borderRadius: '20px', p: 3, width: '100%', maxWidth: 360, maxHeight: '80vh', overflowY: 'auto' }}>
+        <Box sx={{ fontSize: 18, fontWeight: 700, mb: '6px', color: c.text }}>Report profile</Box>
+        <Box sx={{ fontSize: 14, color: c.isDark ? '#BDBDBD' : '#757575', lineHeight: 1.4, mb: '16px' }}>
+          Tell our moderators what this profile did.
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px', mb: '20px' }}>
+          {REPORT_REASONS.map((item) => {
+            const selected = item === reason;
+            return (
+              <Box
+                key={item}
+                component="button"
+                type="button"
+                onClick={() => setReason(item)}
+                sx={{
+                  minHeight: 44,
+                  px: '14px',
+                  textAlign: 'left',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: selected ? 700 : 500,
+                  border: `1px solid ${selected ? PRIMARY : c.isDark ? '#3A3A3C' : '#DDD'}`,
+                  bgcolor: selected ? 'rgba(2,106,253,0.10)' : 'transparent',
+                  color: selected ? PRIMARY : c.text,
+                }}
+              >
+                {item}
+              </Box>
+            );
+          })}
+        </Box>
+        <Box sx={{ display: 'flex', gap: '12px' }}>
+          <Button variant="outlined" onClick={onClose} sx={{ flex: 1, height: 44, borderRadius: '12px', border: `1px solid ${c.isDark ? '#3A3A3C' : '#DDD'}`, bgcolor: c.isDark ? '#2C2C2E' : '#FFFFFF', color: c.text, fontSize: 14, fontWeight: 600 }}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={!reason}
+            onClick={() => {
+              if (!reason) return;
+              onSubmit(reason);
+              onClose();
+            }}
+            sx={{ flex: 1, height: 44, borderRadius: '12px', bgcolor: '#E53935', color: '#FFFFFF', fontSize: 14, fontWeight: 700, '&:hover': { bgcolor: '#D32F2F' } }}
+          >
+            Report
+          </Button>
         </Box>
       </Box>
     </Box>
