@@ -352,17 +352,11 @@ export const FeedScreen = () => {
 
   /* -------------------------------- render ------------------------------- */
 
+  /* StoryRail already shimmers its own band while `nearbyLoading`, so this
+     placeholder draws only the cards — two round carousels at once reads as a
+     glitch, not as loading. */
   const renderShimmer = () => (
     <Shimmer>
-      <Box sx={{ height: 130, py: '12px', px: '16px', display: 'flex', gap: '12px', flexShrink: 0 }}>
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Box key={index} sx={{ width: 80, flexShrink: 0 }}>
-            <ShimmerBox width={66} height={66} radius={33} />
-            <Box sx={{ height: 8 }} />
-            <ShimmerBox width={40} height={10} radius={4} />
-          </Box>
-        ))}
-      </Box>
       <Box sx={{ flex: 1, overflow: 'hidden', p: '16px' }}>
         {Array.from({ length: 3 }).map((_, index) => (
           <Box
