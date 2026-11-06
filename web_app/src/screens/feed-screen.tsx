@@ -20,6 +20,7 @@ import { PostCard } from '../components/feed/post-card';
 import { RadarOverlay } from '../components/feed/radar-overlay';
 import { ScanFab } from '../components/feed/scan-fab';
 import { getCurrentPosition, wait } from '../utils/geo';
+import { readCache, writeCache } from '../utils/screen-cache';
 
 /**
  * `FeedScreen` (mobile_app/lib/screens/feed_screen.dart).
@@ -46,11 +47,13 @@ export const FeedScreen = () => {
   const status = useStatusCycle(FEED_STATUSES);
   const statusRef = useRef(status.option?.value ?? 'available');
 
-  const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [nearby, setNearby] = useState<NearbyUser[]>([]);
-  const [nearbyLoading, setNearbyLoading] = useState(true);
+  const [posts, setPosts] = useState<FeedPost[]>(() => readCache<FeedPost[]>('feed') ?? []);
+  const [nearby, setNearby] = useState<NearbyUser[]>(() => readCache<NearbyUser[]>('nearby') ?? []);
+  const [nearbyLoading, setNearbyLoading] = useState(
+    () => readCache<NearbyUser[]>('nearby') === null
+  );
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => readCache<FeedPost[]>('feed') === null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [pull, setPull] = useState(0);
@@ -80,6 +83,7 @@ export const FeedScreen = () => {
       const position = await getCurrentPosition();
       const users = await apiService.getNearbyUsers(position?.lat, position?.lng);
       setNearby(users);
+      writeCache('nearby', users.slice(0, 15));
     } catch {
       /* Flutter silently ignores auto-load failures. */
     } finally {
@@ -92,6 +96,7 @@ export const FeedScreen = () => {
       const data = await apiService.getFeed();
       postsRef.current = data;
       setPosts(data);
+      writeCache('feed', data.slice(0, 50));
       setError(null);
     } catch {
       if (postsRef.current.length === 0) {

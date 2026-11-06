@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useSnackbar } from './snackbar.context';
+import { clearScreenCache } from '../utils/screen-cache';
 
 interface AuthContextProps {
   userId: string | null;
@@ -58,6 +59,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('userId');
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('userId');
+    // The snapshots are keyed by user id, but dropping them here also stops the
+    // next person to use this browser from reading the last one's threads.
+    clearScreenCache();
   }, []);
 
   // api.service drops a rejected token from storage and announces it here.

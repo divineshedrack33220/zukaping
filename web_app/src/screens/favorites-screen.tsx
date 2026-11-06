@@ -18,6 +18,7 @@ import { Shimmer, ShimmerBox } from '../components/common/shimmer';
 import { ConfirmDialog } from '../components/common/confirm-dialog';
 import { firstInitial, formatDistance, pickAvatar } from '../utils/format';
 import { wait } from '../utils/geo';
+import { readCache, writeCache } from '../utils/screen-cache';
 
 const STATUS_LABELS: Record<string, string> = {
   available: 'Online',
@@ -32,9 +33,10 @@ export const FavoritesScreen = () => {
   const { showToast } = useSnackbar();
   const status = useStatusCycle(FAVORITE_STATUSES);
 
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+  const cachedFavorites = useMemo(() => readCache<FavoriteItem[]>('favorites'), []);
+  const [favorites, setFavorites] = useState<FavoriteItem[]>(cachedFavorites ?? []);
   const [query, setQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(cachedFavorites === null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [pull, setPull] = useState(0);
@@ -50,6 +52,7 @@ export const FavoritesScreen = () => {
       try {
         const list = await apiService.getFavorites();
         setFavorites(list);
+        writeCache('favorites', list.slice(0, 120));
         setLoading(false);
         return;
       } catch {
@@ -61,8 +64,9 @@ export const FavoritesScreen = () => {
   }, []);
 
   useEffect(() => {
-    void loadFavorites();
-  }, [loadFavorites]);
+    // A snapshot on screen already means there is nothing to shimmer about.
+    void loadFavorites(cachedFavorites === null);
+  }, [loadFavorites, cachedFavorites]);
 
   useEffect(() => {
     return wsService.subscribe(({ type, payload }) => {

@@ -25,6 +25,7 @@ import { RoomCarousel } from '../components/rooms/room-carousel';
 import { FlutterSheet } from '../components/common/flutter-sheet';
 import { useImageSourceSheet } from '../components/common/image-source-sheet';
 import { firstInitial, formatChatTimestamp, pickAvatar } from '../utils/format';
+import { readCache, writeCache } from '../utils/screen-cache';
 import { NAV_CLEARANCE } from '../styles/tokens';
 
 const AVATAR_PLACEHOLDER_DARK = '#1C1C1E';
@@ -961,9 +962,10 @@ export const ChatsScreen = () => {
   const { showToast } = useSnackbar();
   const status = useStatusCycle(CHAT_STATUSES, true);
 
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedChats = useMemo(() => readCache<Chat[]>('chats'), []);
+  const [chats, setChats] = useState<Chat[]>(cachedChats ?? []);
+  const [rooms, setRooms] = useState<Room[]>(() => readCache<Room[]>('rooms') ?? []);
+  const [loading, setLoading] = useState(cachedChats === null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [typingChats, setTypingChats] = useState<Record<string, boolean>>({});
@@ -1006,6 +1008,16 @@ export const ChatsScreen = () => {
       /* Flutter leaves the carousel empty on failure. */
     }
   }, []);
+
+  /* Written from the state, not the fetch, so websocket edits to the list are in
+     the snapshot the next mount reads. */
+  useEffect(() => {
+    if (!loading) writeCache('chats', chats.slice(0, 120));
+  }, [chats, loading]);
+
+  useEffect(() => {
+    writeCache('rooms', rooms.slice(0, 40));
+  }, [rooms]);
 
   useEffect(() => {
     void loadChats();

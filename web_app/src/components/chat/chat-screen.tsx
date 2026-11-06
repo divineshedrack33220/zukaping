@@ -43,6 +43,7 @@ import { ConfirmDialog } from '../common/confirm-dialog';
 import { FullScreenViewer } from '../common/fullscreen-viewer';
 import { useImageSourceSheet } from '../common/image-source-sheet';
 import { onViewportShrink } from '../../utils/viewport';
+import { readCache, writeCache } from '../../utils/screen-cache';
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -1126,9 +1127,11 @@ export const ChatScreen = () => {
   const { me } = useMe();
   const { showToast } = useSnackbar();
 
-  const [chat, setChat] = useState<Chat | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedThread = useMemo(() => readCache<Message[]>(`messages.${chatId}`), [chatId]);
+
+  const [chat, setChat] = useState<Chat | null>(() => readCache<Chat>(`chat.${chatId}`));
+  const [messages, setMessages] = useState<Message[]>(cachedThread ?? []);
+  const [loading, setLoading] = useState(cachedThread === null);
   const [typing, setTyping] = useState(false);
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -1198,6 +1201,17 @@ export const ChatScreen = () => {
     void loadChat();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId]);
+
+  /* The snapshot is what lets the next open of this thread paint on the first
+     frame, so it tracks the state rather than the fetch — sent messages and
+     websocket arrivals land in it too. */
+  useEffect(() => {
+    if (chatId) writeCache(`messages.${chatId}`, messages.slice(-120));
+  }, [chatId, messages]);
+
+  useEffect(() => {
+    if (chatId && chat) writeCache(`chat.${chatId}`, chat);
+  }, [chatId, chat]);
 
   useEffect(() => {
     scrollToBottom();

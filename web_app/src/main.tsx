@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { CssBaseline, ThemeProvider, Box, CircularProgress } from '@mui/material';
 
 import { buildFlutterTheme } from './theme';
@@ -67,6 +67,18 @@ const LoadingBody = () => (
 
 const TAB_PATHS = ['/', '/feed', '/favorites', '/chats', '/profile', '/nearby'];
 
+/* A thread's state must not survive a hop to another thread: keying by id
+   remounts the screen so the snapshot it seeds from belongs to the id in the URL. */
+const ChatRoute = () => {
+  const { chatId } = useParams<{ chatId: string }>();
+  return <ChatScreen key={chatId} />;
+};
+
+const RoomRoute = () => {
+  const { roomId } = useParams<{ roomId: string }>();
+  return <RoomChatScreen key={roomId} />;
+};
+
 const AppRoutes = () => {
   const { token, isLoading } = useAuth();
   const location = useLocation();
@@ -101,8 +113,8 @@ const AppRoutes = () => {
       <Route path="/feed" element={<FeedScreen />} />
       <Route path="/favorites" element={<FavoritesScreen />} />
       <Route path="/chats" element={<ChatsScreen />} />
-      <Route path="/chat/:chatId" element={<ChatScreen />} />
-      <Route path="/room/:roomId" element={<RoomChatScreen />} />
+      <Route path="/chat/:chatId" element={<ChatRoute />} />
+      <Route path="/room/:roomId" element={<RoomRoute />} />
       <Route path="/profile" element={<ProfileScreen />} />
       <Route path="/edit-profile" element={<EditProfileScreen />} />
       <Route path="/view-profile/:userId" element={<ViewProfileScreen />} />

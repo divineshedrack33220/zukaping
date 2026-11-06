@@ -19,6 +19,7 @@ import { ConfirmDialog } from '../common/confirm-dialog';
 import { useImageSourceSheet } from '../common/image-source-sheet';
 import { FullScreenViewer } from '../common/fullscreen-viewer';
 import { onViewportShrink } from '../../utils/viewport';
+import { readCache, writeCache } from '../../utils/screen-cache';
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -214,8 +215,10 @@ export const RoomChatScreen = () => {
   const [roomAvatar, setRoomAvatar] = useState<string | null>(null);
   const [roomDescription, setRoomDescription] = useState('');
   const [memberCount, setMemberCount] = useState(0);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState<Message[]>(
+    () => readCache<Message[]>(`messages.${roomId}`) ?? []
+  );
+  const [loading, setLoading] = useState(() => readCache<Message[]>(`messages.${roomId}`) === null);
   const [typing, setTyping] = useState(false);
   const [text, setText] = useState('');
   const [leaveOpen, setLeaveOpen] = useState(false);
@@ -285,6 +288,10 @@ export const RoomChatScreen = () => {
     void loadRoom();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
+
+  useEffect(() => {
+    if (roomId) writeCache(`messages.${roomId}`, messages.slice(-120));
+  }, [roomId, messages]);
 
   useEffect(() => {
     scrollToBottom();
